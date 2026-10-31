@@ -49,3 +49,8 @@ Bài báo gợi ý AI-Assisted cho kế hoạch tổng thể và Human-AI Collab
 - “Learn & Adapt” ở đây là lưu và dùng lại phản hồi trong vòng xử lý. Không huấn luyện mô hình, không cập nhật trọng số, không diễn giải tự động phản hồi tự do. Người trình diễn cập nhật dữ liệu tương ứng trước khi chạy lại.
 - Session State chỉ ở bộ nhớ trang, tải lại trang sẽ xóa phiên.
 
+
+
+## Tình huống chọn nhanh
+
+Hai nút mới dùng cùng hạn ngày 12, nhóm 2 người, ưu tiên backend. API ngày 8 khiến hoàn thành ngày 14 (trễ 2 ngày); API ngày 2 khiến hoàn thành ngày 12 (kịp hạn). Đây là kết quả quy tắc demo, không phải số liệu bài báo. Sơ đồ phụ thuộc giải thích vì sao tích hợp phải chờ các nhánh giao diện, backend và thanh toán.
