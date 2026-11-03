@@ -1,6 +1,7 @@
 """Configuration is read locally; credentials never go to the browser."""
 import os
 from pathlib import Path
+from importlib.metadata import version, PackageNotFoundError
 
 ROOT = Path(__file__).resolve().parent
 
@@ -20,6 +21,8 @@ def settings():
 
 def public_settings():
     c=settings()
-    return {'provider':'Gemini','model':c['model'],'configured':bool(c['key']),
-            'setup':'Chạy python setup_api.py trong thư mục real-demo để lưu key trên máy. Không gửi key vào chat.',
+    try: framework_version=version('langgraph')
+    except PackageNotFoundError: framework_version='not installed'
+    return {'provider':'Gemini','model':c['model'],'configured':bool(c['key']), 'orchestrator':'LangGraph', 'orchestrator_version':framework_version,
+            'setup':'Chạy python setup_api.py trong thư mục hub-and-spoke để lưu key trên máy. Không gửi key vào chat.',
             'free_tier':'Dùng project Free Tier trong AI Studio; chương trình không kiểm tra được gói thanh toán của tài khoản.'}

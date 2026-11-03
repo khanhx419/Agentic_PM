@@ -1,0 +1,2 @@
+upstream-reference/*.ipynb -text
+upstream-reference/*.txt -text

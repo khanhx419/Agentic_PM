@@ -1,0 +1,40 @@
+---
+config:
+  flowchart:
+    curve: linear
+---
+graph TD;
+	__start__([<p>__start__</p>]):::first
+	coordinator(coordinator)
+	planner(planner)
+	developer(developer)
+	qa(qa)
+	governance(governance)
+	repair(repair)
+	accept(accept)
+	stop(stop)
+	gate_pass(gate_pass)
+	gate_fail(gate_fail)
+	finish(finish)
+	__end__([<p>__end__</p>]):::last
+	__start__ --> coordinator;
+	accept --> finish;
+	coordinator -.-> accept;
+	coordinator -.-> developer;
+	coordinator -.-> planner;
+	coordinator -.-> qa;
+	coordinator -.-> repair;
+	coordinator -.-> stop;
+	developer --> finish;
+	gate_fail --> finish;
+	gate_pass --> finish;
+	governance -.-> gate_fail;
+	governance -.-> gate_pass;
+	planner --> finish;
+	qa --> governance;
+	repair --> finish;
+	stop --> finish;
+	finish --> __end__;
+	classDef default fill:#f2f0ff,line-height:1.2
+	classDef first fill-opacity:0
+	classDef last fill:#bfb6fc

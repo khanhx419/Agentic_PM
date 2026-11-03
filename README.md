@@ -2,6 +2,8 @@
 
 - [Chạy demo Hub-and-Spoke](hub-and-spoke/README.md).
 - [File kiến thức cần học](hub-and-spoke/KIEN-THUC-CAN-HOC-HUB-AND-SPOKE.md).
+- [Nguồn mã và phần bổ sung](hub-and-spoke/SOURCES-AND-CHANGES.md).
+- [Kịch bản demo với thầy](hub-and-spoke/HUONG-DAN-HOC-VA-THUYET-TRINH.md).
 - [Slide Hub-and-Spoke](hub-and-spoke/SLIDE-HUB-AND-SPOKE.html).
 
 ---

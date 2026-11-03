@@ -1,127 +1,99 @@
-# Hướng dẫn học và trình diễn Hub-and-Spoke
+# Hướng dẫn chạy và trình bày demo Hub-and-Spoke với thầy
 
-## Mục tiêu buổi gặp thầy
+## 1. Mục tiêu lần gặp này
 
-Thầy đã nghe phần Hub-and-Spoke và yêu cầu làm thử demo. Vì vậy, lần này tập trung chứng minh một luồng chạy được: nhận yêu cầu → tạo mã → phát hiện vi phạm → sửa → kiểm tra lại. Chưa cần trình bày đề tài mới hoặc bổ sung một bài báo cáo nghiên cứu khác.
+Thầy đã nghe Hub-and-Spoke và yêu cầu làm thử demo. Trình bày một cơ chế chạy được: Hub điều phối các vai trò; mã vi phạm bị chặn; Developer nhận lỗi để sửa; bản sửa phải kiểm tra lại. Không cần mở rộng sang đề tài khác.
 
-## 1. Cần nắm trước tiên
+## 2. Chuẩn bị trước buổi demo
 
-**Hub-and-Spoke:** các vai trò làm việc qua một bộ điều phối trung tâm. Trong demo, Hub là logic Python trong `pipeline.advance`, không phải một LLM riêng. Các vai trò không tự gọi lẫn nhau tùy ý.
+1. Mở thư mục `Agentic_PM/hub-and-spoke` trong repo. Trên máy hiện tại là `Bo-thuyet-trinh/02-Agentic-PM/hub-and-spoke`.
+2. Chạy `cai-dat.cmd` để cài LangGraph vào `.venv`. Chỉ cần làm lần đầu hoặc khi thay dependency.
+3. Chạy `cau-hinh-api.cmd`, nhập key trên máy. Không chiếu nội dung `.env`.
+4. Chạy `start.cmd`, giữ cửa sổ server, mở http://127.0.0.1:8767/hub.
+5. Mở sẵn `workflow.py`, `SOURCES-AND-CHANGES.md` và `KIEN-THUC-CAN-HOC-HUB-AND-SPOKE.md`.
+6. Nếu cần sơ đồ graph: `.venv\Scripts\python.exe export_graph.py`. Mở `WORKFLOW.mmd` bằng công cụ có hỗ trợ Mermaid, hoặc xem phần graph trong GitHub. Không cần chạy notebook gốc.
 
-**Agent:** vai trò có chỉ dẫn và đầu vào riêng. Planner và Developer cùng dùng Gemini nhưng prompt khác nhau. QA và Governance trong bản này là công cụ Python kiểm tra cục bộ, không phải các LLM độc lập.
+Nếu port 8767 đang dùng, đóng đúng cửa sổ server cũ của mình hoặc dùng `.venv\Scripts\python.exe app.py --port 8768` rồi mở đúng port. Không tắt tiến trình không biết là gì.
 
-**Phạm vi demo:** tạo một hàm `validate_email(email) -> bool`. Chọn bài toán nhỏ để quan sát cơ chế điều phối và vòng chặn–sửa rõ ràng; chưa triển khai toàn bộ quy trình phát triển phần mềm trong luận văn.
+## 3. Mở đầu — khoảng 45 giây
 
-## 2. Luồng cần giải thích được
+Có thể nói:
 
-Yêu cầu → Planner → Developer → QA + Governance → nếu lỗi thì Developer sửa → kiểm tra lại → người dùng chấp nhận.
+“Sau buổi trước, em đã làm một demo Hub-and-Spoke ở phạm vi nhỏ. Em dùng bài toán sinh hàm kiểm tra email để quan sát bộ điều phối, kiểm thử chức năng và cổng Governance. Demo dùng LangGraph để điều phối, Gemini cho Planner/Developer, còn kết quả kiểm tra do Python quyết định.”
 
-| Thành phần | Làm gì trong demo? | Có gọi Gemini? |
+Nếu thầy hỏi nguồn:
+
+“Em tham khảo mẫu Code Assistant chính thức của LangGraph về vòng sinh mã–kiểm tra–sửa. Em bổ sung Planner, cổng AST, QA và bước chấp nhận. Tài liệu Hub-and-Spoke là nguồn kiến trúc, còn đây là demo em triển khai để minh họa, chưa phải mã nguồn nguyên bản của luận văn.”
+
+Mở `SOURCES-AND-CHANGES.md` nếu cần chỉ chính xác phần kế thừa. Không nói “em dùng code luận văn” hoặc “chỉ clone repo về chạy”.
+
+## 4. Demo luồng bình thường — khoảng 2 phút
+
+Giữ yêu cầu mặc định: hàm `validate_email(email)` kiểm tra email cơ bản. Để trống ô mã có sẵn.
+
+| Thao tác | Quan sát | Câu giải thích |
 |---|---|---|
-| Coordinator/Hub | Giữ trạng thái, chọn bước, chuyển phản hồi | Không |
-| Planner | Tạo một story và tiêu chí chấp nhận | Có |
-| Developer | Sinh mã hoặc sửa mã theo lỗi được gửi lại | Có |
-| QA | Kiểm tra hành vi hàm qua 14 ca email | Không |
-| Governance | Phân tích AST, áp quy tắc mã nguồn | Không |
-| Người dùng | Xem và chấp nhận khi cả hai cổng đạt | Không |
+| Bấm bắt đầu | Story và tiêu chí chấp nhận | Planner gọi Gemini để làm rõ một yêu cầu nhỏ |
+| Cho Developer viết mã | Hàm Python xuất hiện | Đây là mã Gemini sinh trong phiên này |
+| Chạy QA/Governance | Hai kết quả riêng, số ca thử, lỗi nếu có | QA kiểm tra chức năng; Governance áp quy tắc AST |
+| Nếu đạt, xem mã rồi chấp nhận | Kết thúc phiên | Người dùng vẫn giữ bước chấp nhận; không merge/deploy |
 
-Story là yêu cầu nhỏ có thể kiểm tra. US là viết tắt của User Story.
+Đầu ra Gemini không cố định. Nếu mã chưa đạt, dùng phản hồi thật để sửa; không nói mọi lần model đều tạo mã đúng ngay.
 
-Nếu nhập mã có sẵn, bước tiếp nhận mã không gọi Gemini để sinh mã. Khi thuyết trình phải phân biệt mã đầu vào với mã do model tạo.
+## 5. Demo điểm chính: chặn và sửa — khoảng 2–3 phút
 
-## 3. QA khác Governance thế nào?
+1. Bấm bắt đầu lại, mở phần yêu cầu và chọn “Điền ví dụ có secret”.
+2. Chỉ dòng `SECRET_KEY = "DEMO_ONLY_NOT_REAL"`. Nói rõ đây là mã đầu vào giả lập tình huống vi phạm, không phải key thật hoặc lỗi bị chèn ngầm vào model.
+3. Chạy Planner rồi tiếp nhận mã. Bước tiếp nhận không gọi Gemini viết mã; giao diện ghi rõ điều đó.
+4. Chạy QA và Governance. Mã mẫu có thể đạt QA nhưng bị Governance báo `HARDCODED_SECRET` kèm dòng.
+5. Nói: “Hàm đúng chức năng vẫn chưa đủ, mã còn phải tuân thủ quy tắc.”
+6. Bấm yêu cầu Developer sửa. Gemini nhận mã đã che secret phát hiện được và phản hồi thực từ hai cổng.
+7. Chỉ bản r2, chạy kiểm tra lại. Nếu đạt, xem và chấp nhận. Nếu chưa đạt, đọc lỗi và tiếp tục trong giới hạn.
 
-QA trả lời: “Hàm có xử lý đúng các ca kiểm thử không?”. Governance trả lời: “Mã có vi phạm các quy tắc đã đặt ra không?”.
+Không khẳng định model bắt buộc phải chuyển sang `.env`: nó có thể bỏ cấu hình secret không cần thiết hoặc dùng `os.getenv` đúng quy tắc. Điều cần chứng minh là vi phạm được xử lý và bản mới được kiểm tra lại.
 
-Ví dụ: hàm kiểm tra email đúng nhưng có `API_KEY = "demo-secret"` thì QA có thể đạt, Governance chặn. Ngược lại, mã không chứa secret nhưng chấp nhận `abc` là email thì vẫn trượt QA.
+Nếu chỉ muốn giải thích cổng AST, mở phần kiểm tra trực tiếp: thao tác này không gọi Gemini, không đại diện cho toàn bộ luồng agent.
 
-Điều kiện cho xem xét chấp nhận: `qa.pass AND governance.pass`. Lời model nói “đã sửa xong” không phải bằng chứng đạt. Bản mã mới phải được Python kiểm tra lại.
+## 6. Chỉ code trong khoảng 1 phút
 
-## 4. AST cần hiểu đến đâu?
+- `workflow.py`, `build_graph`: chỉ `StateGraph`, `add_node`, `add_conditional_edges`, `compile` để chứng minh dùng framework thật.
+- `coordinator`: chỉ Hub chọn vai trò theo trạng thái.
+- `gate_route`: chỉ điều kiện `qa.pass AND governance.pass`.
+- `repair`: chỉ feedback, che secret, xóa kết quả kiểm tra cũ và quay về coded.
+- `governance.scan`: chỉ quy tắc AST tìm vi phạm.
 
-AST là cây cú pháp trừu tượng, biểu diễn cấu trúc mã: phép gán, tên biến, giá trị, lời gọi hàm... `ast.parse` chuyển mã thành cây, bộ quét duyệt nút và áp quy tắc.
+Nếu thầy muốn bằng chứng graph đã chạy: tải JSON phiên trong phần lịch sử, xem `engine: LangGraph` và `graph_steps` có tên các node theo từng bước. Đây là log cục bộ của phiên, không phải kết quả benchmark của framework.
 
-Ví dụ `API_KEY = "demo-secret"`: quy tắc thấy tên biến nhạy cảm được gán chuỗi cố định, báo `HARDCODED_SECRET` kèm dòng vi phạm. Ngoài ra demo kiểm tra một số dạng ghép chuỗi/alias, secret mặc định trong `getenv`, lệnh nguy hiểm và cấu trúc ngoài phạm vi.
+## 7. Kết thúc — khoảng 30 giây
 
-Không cần học thuộc toàn bộ loại nút AST. Cần đọc hiểu `ast.Assign`, `ast.Name`, `ast.Constant`, `ast.Call` và `ast.walk` khi xem bộ quét.
+“Demo đã thể hiện điều phối các vai trò và vòng chặn–sửa trước khi chấp nhận mã. Em dùng nền LangGraph có mã nguồn công khai, rồi tập trung bổ sung phần Governance và kiểm tra độc lập. Hiện em giới hạn ở một hàm Python để kiểm tra cơ chế trước.”
 
-QA dùng bộ thông dịch AST giới hạn trong worker riêng với timeout. Không dùng `exec`/`eval` để chạy Python tùy ý, không phải Docker sandbox. PASS chỉ chứng minh đạt các quy tắc và ca thử hiện có; không bảo đảm phát hiện mọi secret hoặc mọi lỗ hổng.
+## 8. Câu hỏi thầy có thể hỏi
 
-## 5. Thứ tự đọc code
-
-| Thứ tự | Đọc gì | Câu cần trả lời |
-|---|---|---|
-| 1 | `pipeline.py`: PROMPTS | Planner và Developer được giao việc gì? |
-| 2 | `pipeline.py`: initial, advance, check_hub | Ai chọn bước? Khi nào chặn, sửa, chấp nhận? |
-| 3 | `governance.py`: scan | Vi phạm được phát hiện và trả về ra sao? |
-| 4 | `governance.py`: redact_code, qa; `qa_worker.py` | Che secret thế nào? QA kiểm tra ở đâu? |
-| 5 | `llm.py`, `config.py` | Gọi Gemini và đọc cấu hình thế nào? |
-| 6 | `web/app.js`, `app.py`, `store.py` | Nút bấm đi tới backend và lưu phiên ra sao? |
-
-Python cần học: hàm, dict/list, if/elif, vòng lặp, exception, JSON, class ở mức đọc hiểu. Chưa cần tập trung vào CSS hoặc chi tiết SQLite.
-
-### Máy trạng thái
-
-Luồng bình thường: `ready → planned → coded → review → accepted`.
-
-Nếu không đạt: `coded → blocked → coded` sau khi Developer sửa. Mỗi lần bấm xử lý một bước. Tối đa 3 lần sửa, không chấp nhận khi mã vẫn bị chặn. `confirmed` là xác nhận của người dùng ở bước xem xét.
-
-### Một lần bấm nút
-
-`web/app.js` gửi HTTP → `app.py` kiểm tra phiên → `pipeline.advance` chọn bước → Gemini hoặc công cụ Python chạy → `store.py` lưu → giao diện hiển thị kết quả.
-
-Version và khóa phiên giúp tránh hai yêu cầu chạy trùng. Token phiên khác API key Gemini.
-
-## 6. Kịch bản demo với thầy: khoảng 5–7 phút
-
-### Mở đầu: khoảng 30 giây
-
-“Sau buổi trước, em làm thử một demo Hub-and-Spoke ở phạm vi nhỏ. Em dùng bài toán sinh hàm kiểm tra email để thể hiện bộ điều phối, kiểm tra chức năng và cổng Governance. Trọng tâm là khi mã vi phạm thì hệ thống chặn, gửi lỗi cho Developer sửa và kiểm tra lại.”
-
-### Luồng bình thường: khoảng 2 phút
-
-1. Chạy `start.cmd`, mở http://127.0.0.1:8766/hub.
-2. Chạy Planner, chỉ story và tiêu chí chấp nhận.
-3. Chạy Developer, chỉ hàm được Gemini tạo.
-4. Chạy kiểm tra, chỉ kết quả QA và Governance riêng biệt.
-5. Nếu cả hai đạt, chỉ bước người dùng chấp nhận. Không có merge/deploy thật.
-
-### Luồng chặn–sửa: khoảng 2–3 phút
-
-1. Tạo phiên mới, mở phần yêu cầu và chọn ví dụ có secret.
-2. Nói rõ đây là mã đầu vào cố ý cung cấp để thử cổng kiểm tra, không phải model chắc chắn luôn sinh lỗi đó.
-3. Chạy tới kiểm tra, chỉ dòng bị Governance chặn; đối chiếu với kết quả QA.
-4. Tiếp tục cho Developer nhận phản hồi và sửa bằng Gemini.
-5. Kiểm tra lại bản sửa. Nếu đạt thì chấp nhận; nếu chưa đạt thì đọc lỗi thật và tiếp tục trong giới hạn.
-
-Có thể dùng phần kiểm tra AST/QA trực tiếp để giải thích cổng kiểm tra mà không gọi API mới.
-
-### Kết thúc: khoảng 30 giây
-
-“Demo đã thể hiện luồng điều phối và kiểm tra trước khi chấp nhận mã. Phần em tập trung triển khai là cổng Governance và vòng phản hồi sửa lỗi; hiện tại em giới hạn ở một hàm Python để kiểm tra cơ chế trước.”
-
-## 7. Câu hỏi thầy có thể hỏi
-
-| Câu hỏi | Ý trả lời |
+| Câu hỏi | Cách trả lời |
 |---|---|
-| Hub nằm ở đâu? | Trong `pipeline.advance`, cùng trạng thái phiên; Python chọn vai trò được chạy tiếp. |
-| Agent chạy local hay API? | Planner/Developer gọi Gemini API; điều phối, AST và QA chạy local. |
-| Sao nhiều agent cùng một model? | Agent được tách theo vai trò, prompt và đầu vào; không bắt buộc mỗi vai trò một model khác. |
-| Governance có phải AI phán an toàn không? | Không. Cổng quyết định bằng quy tắc Python trên AST; Gemini sửa theo phản hồi. |
-| Sao không chỉ kiểm thử? | Đúng chức năng vẫn có thể vi phạm quy tắc, như chứa secret viết cứng. |
-| Mã có sẵn hay model tạo? | Luồng thường do Gemini tạo; tình huống secret dùng mã đầu vào minh bạch để kiểm tra chặn–sửa. |
-| Bắt được mọi secret không? | Không; mới bao phủ các dạng được quy tắc hỗ trợ. |
-| Có dùng ADK/LangGraph không? | Bản này dùng Python chuẩn, REST Gemini, JSON và máy trạng thái tự viết. |
-| Có phải mã gốc tác giả? | Không, là bản demo tự triển khai cơ chế phạm vi hẹp dựa trên kiến trúc nghiên cứu. |
-| Xong rồi tự đẩy production à? | Không. Chỉ tới chấp nhận kết quả trong demo, không merge/deploy. |
+| Code này lấy từ đâu? | Nền workflow dựa trên Code Assistant/LangGraph chính thức; các node được viết lại cho demo; nguồn và commit ở SOURCES-AND-CHANGES.md |
+| Có phải code của luận văn? | Không. Tài liệu cung cấp kiến trúc; demo dùng nền công khai khác để minh họa cơ chế |
+| Dùng LangGraph cụ thể ở đâu? | workflow.py dựng StateGraph, node, conditional edges, compile và invoke thật |
+| Vậy Hub có phải một LLM không? | Không trong bản này. Hub là điều phối theo quy tắc Python để không bỏ qua cổng; Planner/Developer là vai trò gọi LLM |
+| Có phải Supervisor/Subagents đúng nguyên bản? | Không. Có tham khảo kiến trúc điều phối trung tâm, nhưng không dùng LLM supervisor tự chọn tool hoặc gói langgraph-supervisor |
+| Vì sao không chỉ gọi Gemini một lần? | Cần tách bước tạo và kiểm tra, giữ phản hồi và sửa được lỗi; chưa có thí nghiệm đối chứng chứng minh ưu thế định lượng |
+| QA khác Governance? | QA kiểm tra hành vi qua ca thử; Governance áp quy tắc lên mã nguồn; đúng chức năng vẫn có thể vi phạm |
+| Governance có dùng AI quyết định không? | Không. PASS/FAIL do Python; AI chỉ viết/sửa mã theo phản hồi |
+| LangGraph lưu phiên và chờ người dùng à? | Graph điều phối bước; SQLite của demo lưu phiên; xác nhận qua API. Chưa dùng checkpointer/interrupt của LangGraph |
+| Có bảo đảm phát hiện mọi secret? | Không, mới bao phủ một số dạng/quy tắc và tập con Python |
+| Có chạy mã tùy ý không? | Không, QA dùng thông dịch AST giới hạn trong worker timeout; không gọi exec trên mã sinh |
+| API miễn phí hoàn toàn? | Phụ thuộc model/project/quota; cấu hình hiện dùng Gemini, không cam kết miễn phí vô hạn |
+| Sửa hoài không được? | Tối đa 3 lần sửa rồi dừng chưa đạt, không tự chấp nhận |
+| Đóng góp của em? | Tích hợp vai trò với nền workflow, thêm AST/QA, phản hồi sửa, xác nhận, lưu phiên và UI; không nhận framework/kiến trúc nghiên cứu là phát minh của mình |
 
-## 8. Tự luyện trước khi gặp thầy
+## 9. Khi có lỗi lúc trình diễn
 
-- Vẽ lại luồng và chỉ bước nào gọi Gemini, bước nào chạy local.
-- Giải thích một ví dụ QA đạt nhưng Governance không đạt.
-- Mở `check_hub` và tìm điều kiện cả hai cổng cùng đạt.
-- Mở nhánh `blocked` trong `advance`: xem phản hồi, che secret, gọi sửa và quay lại kiểm tra.
-- Thử công cụ kiểm tra trực tiếp bằng secret giả; không dùng key thật.
-- Phân biệt kết quả lần chạy hiện tại với dữ liệu đã lưu từ lần chạy trước.
+- Thiếu LangGraph: chạy `cai-dat.cmd`, dùng Python trong `.venv`.
+- Thiếu key: cấu hình trên máy rồi tải lại trang.
+- 429: quota, không phải Governance chặn. Không gọi dữ liệu offline là kết quả API thật.
+- 404: tên model/quyền model, sửa cấu hình theo tài khoản.
+- Mã bị chặn: đọc dòng vi phạm, cho Developer sửa, không sửa PASS/FAIL bằng tay.
+- Mạng chậm: chờ bước hiện tại, không bấm liên tục. Nếu tải lại trang, cùng tab có thể đọc phiên đã lưu.
 
-Không chiếu `.env`. API có thể hết quota hoặc lỗi mạng; giữ kết quả/lỗi thật, không biến dữ liệu cố định thành kết quả vừa gọi API.
+Tài liệu kiểm thử trong `VERIFICATION.md` ghi rõ test dùng model thay thế và lần gọi Gemini thật (nếu đã hoàn tất). Luôn phân biệt bằng chứng của lần trước với kết quả đang chạy.

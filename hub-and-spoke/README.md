@@ -1,26 +1,60 @@
-# Demo Hub-and-Spoke / Governance
+# Demo Hub-and-Spoke / Governance trên LangGraph
 
-Phần làm thử với thầy: Planner → Developer → QA và Governance → sửa nếu lỗi → kiểm tra lại → người dùng chấp nhận.
+Planner và Developer gọi Gemini thật. LangGraph điều phối; Python kiểm tra chức năng và quy tắc AST. Mã lỗi bị chặn, gửi phản hồi sửa, kiểm tra lại rồi chờ người dùng chấp nhận.
 
-## Chạy
+## Bắt đầu trên Windows
 
-Python 3.10 trở lên, không cần pip. Mở `cau-hinh-api.cmd` để nhập Gemini key trên máy, sau đó `start.cmd`. Mở http://127.0.0.1:8766/hub. Nếu port đang dùng: `python app.py --port 8767`, mở đúng port mới.
+1. Có Python 3.11–3.13; máy đang kiểm thử dùng Python 3.13.
+2. Mở `cai-dat.cmd` một lần để tạo `.venv` và cài phiên bản LangGraph đã ghim. Cần mạng để tải thư viện.
+3. Mở `cau-hinh-api.cmd` để nhập Gemini key trên máy nếu chưa cấu hình. Không gửi key vào chat hoặc commit `.env`.
+4. Mở `start.cmd`, giữ cửa sổ server và mở http://127.0.0.1:8767/hub.
 
-Key nằm trong `.env`/biến môi trường, không commit. Planner/Developer gọi Gemini, AST và QA chạy local. Không có kết quả giả khi API lỗi. QA dùng bộ thông dịch AST giới hạn, không phải Docker sandbox. Không merge/deploy thật.
+Nếu port đang dùng: chạy `.venv\Scripts\python.exe app.py --port 8768` từ thư mục này, rồi mở http://127.0.0.1:8768/hub.
 
-## File cần đọc
+LangGraph là thư viện chạy local. Bước gọi Gemini cần mạng, có quota/chi phí theo tài khoản. AST/QA không gọi model. Không cần tài khoản LangSmith hay dịch vụ LangGraph Cloud.
 
-- [Kiến thức cần học riêng](KIEN-THUC-CAN-HOC-HUB-AND-SPOKE.md).
-- [Hướng dẫn trình diễn](HUONG-DAN-HOC-VA-THUYET-TRINH.md).
-- Comment ngắn trong pipeline.py, governance.py, qa_worker.py và app.py nhắc cơ chế quan trọng.
+## Đọc để trình bày với thầy
 
-## Kiểm thử
+| File | Đọc để làm gì? |
+|---|---|
+| [KIEN-THUC-CAN-HOC-HUB-AND-SPOKE.md](KIEN-THUC-CAN-HOC-HUB-AND-SPOKE.md) | Kiến thức và thứ tự đọc code |
+| [HUONG-DAN-HOC-VA-THUYET-TRINH.md](HUONG-DAN-HOC-VA-THUYET-TRINH.md) | Kịch bản demo, lời nói và câu hỏi thường gặp |
+| [SOURCES-AND-CHANGES.md](SOURCES-AND-CHANGES.md) | Nguồn mã, phần kế thừa, phần bổ sung và phạm vi |
+| [SLIDE-HUB-AND-SPOKE.html](SLIDE-HUB-AND-SPOKE.html) | Slide báo cáo trước đây; ví dụ triển khai mới giải thích bằng tài liệu demo |
+| [DEMO-OFFLINE-HUB-AND-SPOKE.html](DEMO-OFFLINE-HUB-AND-SPOKE.html) | Bản mô phỏng cũ, tách rõ với hệ thống gọi API |
 
-`python -m unittest discover -s tests -v`
+## Code chính
 
-Tests dùng model thay thế để không tốn API; AST/QA chạy thật. Đây là demo triển khai lại phạm vi một hàm kiểm tra email, không phải nguyên bản code tác giả hoặc toàn bộ SDLC.
+- `pipeline.py`: prompt, dữ liệu phiên, lớp giao tiếp tương thích với API.
+- `workflow.py`: StateGraph thật, Hub, các node và điều kiện chuyển bước.
+- `governance.py`: bộ quét AST và che secret trước khi gửi sửa.
+- `qa_worker.py`: bộ thông dịch AST giới hạn, 14 ca thử email.
+- `llm.py`: Gemini REST, JSON, lỗi quota/mạng, token và thời gian thực.
+- `app.py`, `store.py`, `web/`: HTTP local, lưu phiên, giao diện.
 
-## Slide và bản mô phỏng trước
+Một lần bấm chạy Hub → bước nghiệp vụ → lưu kết quả. Bước kiểm tra gồm QA → Governance → nhánh PASS/FAIL. Vòng sửa cần bấm tiếp để quan sát; không có tự gọi API liên tục ngầm.
 
-- [Slide Hub-and-Spoke](SLIDE-HUB-AND-SPOKE.html).
-- [Bản mô phỏng offline trước đây](DEMO-OFFLINE-HUB-AND-SPOKE.html).
+## Kiểm thử và xem graph
+
+```powershell
+.venv\Scripts\python.exe -m unittest discover -s tests -v
+.venv\Scripts\python.exe export_graph.py
+```
+
+Tests dùng model thay thế được gắn nhãn rõ, không tốn API. AST, QA và LangGraph chạy thật trong tests. `WORKFLOW.mmd` được xuất từ graph thực, không gọi Gemini hay dịch vụ vẽ ảnh. Dữ liệu tải JSON phiên có `engine` và `graph_steps` để xem đường đi thực tế.
+
+`requirements.txt` ghim LangGraph. `cai-dat.cmd` cài theo `requirements-lock.txt`, là bộ dependency đã kiểm thử trên máy. Nguồn tham khảo được cố định theo commit, xem `upstream-reference/manifest.json`.
+
+## Phạm vi và lỗi thường gặp
+
+- Một hàm Python `validate_email(email) -> bool`, tập con hỗ trợ được ghi trong prompt. Không có Python tùy ý, mạng, I/O hoặc helper function trong mã sinh.
+- QA dùng worker timeout và bộ thông dịch AST giới hạn; không phải Docker sandbox. PASS không chứng nhận mọi mặt an toàn.
+- Governance là quy tắc Python, không phải model đánh giá an toàn. Mọi bản sửa phải kiểm tra lại, tối đa 3 lần sửa.
+- Người dùng xác nhận sau khi hai cổng đạt; không merge/deploy thật. Lỗi API không được thay bằng dữ liệu mô phỏng.
+- Thiếu LangGraph: chạy lại `cai-dat.cmd`. Không chạy nhầm Python ngoài `.venv` khi kiểm thử.
+- Thiếu key: chạy `cau-hinh-api.cmd`, tải lại trang. 429: chạm quota. 404: model không khả dụng, cập nhật cấu hình model. Không tự đổi provider hoặc bật billing.
+- Lỗi khi sinh mã: đọc phản hồi và thử lại đúng bước. Không sửa kết quả kiểm tra để biến FAIL thành PASS.
+
+## Kết quả kiểm tra
+
+Xem [VERIFICATION.md](VERIFICATION.md): 19 tests, kiểm tra giao diện và hai luồng Gemini thật qua LangGraph.

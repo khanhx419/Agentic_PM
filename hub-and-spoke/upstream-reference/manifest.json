@@ -1,0 +1,14 @@
+{
+  "repository": "https://github.com/langchain-ai/langgraph",
+  "commit": "23961cff61a42b52525f3b20b4094d8d2fba1744",
+  "files": {
+    "langgraph_code_assistant.ipynb": {
+      "url": "https://raw.githubusercontent.com/langchain-ai/langgraph/23961cff61a42b52525f3b20b4094d8d2fba1744/docs/docs/tutorials/code_assistant/langgraph_code_assistant.ipynb",
+      "sha256": "89ab90ef9f9e979dcd258a3098dcb94de0e5a44f5b3b4208f318e2ea66b6f211"
+    },
+    "LANGGRAPH-LICENSE.txt": {
+      "url": "https://raw.githubusercontent.com/langchain-ai/langgraph/23961cff61a42b52525f3b20b4094d8d2fba1744/LICENSE",
+      "sha256": "d9bb52f2e3540d60ff50d8f0f5b6ba649b7fd346948c4c3d086c8afb120763c7"
+    }
+  }
+}

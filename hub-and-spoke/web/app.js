@@ -37,7 +37,7 @@ function render(){
  $('next').textContent=busy?'Đang xử lý…':info.button;$('next').disabled=busy||!config||!!info.end;$('request').disabled=busy;$('reset').setAttribute('aria-disabled',String(busy));if($('initial-code'))$('initial-code').disabled=busy;
  document.querySelectorAll('.agent').forEach((el,i)=>el.className='agent'+(i===info.active?(info.error?' fail':' active'):''));
  $('connection').textContent=!config?'Đang đọc cấu hình':config.configured?'Gemini · key đã cấu hình':'Gemini · chưa có key';
- $('config-text').textContent=config?config.provider+' · '+config.model+' · '+(config.configured?'Key có trên server, chưa khẳng định API gọi thành công.':'Chưa tìm thấy GEMINI_API_KEY trên server.'):'Chưa kết nối server.';
+ $('config-text').textContent=config?config.orchestrator+' '+config.orchestrator_version+' · '+config.provider+' · '+config.model+' · '+(config.configured?'Key có trên server, chưa khẳng định API gọi thành công.':'Chưa tìm thấy GEMINI_API_KEY trên server.'):'Chưa kết nối server.';
  $('error').textContent=lastError||session?.last_error||'';
  let html='';if(session){
   if(kind==='hub'){
@@ -50,7 +50,7 @@ function render(){
  const calls=session?.calls||[];$('usage').textContent=calls.length?calls.length+' lượt gọi Gemini thực · '+calls.reduce((n,c)=>n+(c.input_tokens||0),0)+' input tokens · '+calls.reduce((n,c)=>n+(c.output_tokens||0),0)+' output tokens. Các số này từ phản hồi API.':'';
  $('export').hidden=!session;
 }
-async function boot(){try{config=await api('/api/config');const saved=sessionStorage.getItem(storageKey);if(saved){try{const data=JSON.parse(saved);sessionToken=data.token;session=(await api('/api/session?id='+encodeURIComponent(data.id))).session;$('request').value=session.description;if($('initial-code'))$('initial-code').value=session.initial_code||''}catch{forget()}}}catch(e){lastError='Chưa kết nối server. Chạy start.cmd rồi mở http://127.0.0.1:8766.'}render()}
+async function boot(){try{config=await api('/api/config');const saved=sessionStorage.getItem(storageKey);if(saved){try{const data=JSON.parse(saved);sessionToken=data.token;session=(await api('/api/session?id='+encodeURIComponent(data.id))).session;$('request').value=session.description;if($('initial-code'))$('initial-code').value=session.initial_code||''}catch{forget()}}}catch(e){lastError='Chưa kết nối server. Chạy start.cmd rồi mở http://127.0.0.1:8767.'}render()}
 async function next(){if(busy)return;if(!config?.configured){busy=true;render();try{config=await api('/api/config');lastError=config.configured?'':'Chưa có key. Chạy cau-hinh-api.cmd trên máy.'}catch(e){lastError=e.message}finally{busy=false;render()}return}
  busy=true;lastError='';render();try{
  if(!session){const created=await api('/api/sessions',{kind,description:$('request').value,initial_code:$('initial-code')?.value||''});session=created.session;sessionToken=created.session_token;remember()}

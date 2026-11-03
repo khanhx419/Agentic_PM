@@ -8,12 +8,13 @@ from http.server import BaseHTTPRequestHandler,ThreadingHTTPServer
 from pathlib import Path
 from config import ROOT,public_settings
 from llm import Gemini,ModelError
-from pipeline import initial,advance
+from pipeline import initial
+from workflow import run_step as advance
 from governance import scan,qa
 from store import Store
 
 # Web chỉ nhận thao tác; quyết định bước và PASS/FAIL nằm ở backend.
-def make_server(port=8766,model=None,store=None):
+def make_server(port=8767,model=None,store=None):
     app_token=secrets.token_urlsafe(32);database=store or Store(ROOT/'.state');llm=model or Gemini()
     allowed_hosts={f'127.0.0.1:{port}',f'localhost:{port}'}
     allowed_origins={'http://'+h for h in allowed_hosts}
@@ -86,9 +87,9 @@ def make_server(port=8766,model=None,store=None):
     return server
 
 if __name__=='__main__':
-    parser=argparse.ArgumentParser();parser.add_argument('--port',type=int,default=8766);args=parser.parse_args()
+    parser=argparse.ArgumentParser();parser.add_argument('--port',type=int,default=8767);args=parser.parse_args()
     try:server=make_server(args.port)
-    except OSError:raise SystemExit('Port dang duoc su dung. Thu: python app.py --port 8767')
+    except OSError:raise SystemExit('Port dang duoc su dung. Thu: python app.py --port 8768')
     print(f'Hub:  http://127.0.0.1:{args.port}/hub')
     print('Gemini key configured:',public_settings()['configured'])
     try:server.serve_forever()
