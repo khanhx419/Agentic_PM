@@ -1,3 +1,11 @@
+## Hub-and-Spoke / Governance — demo hiện tại
+
+- [Chạy demo Hub-and-Spoke](hub-and-spoke/README.md).
+- [File kiến thức cần học](hub-and-spoke/KIEN-THUC-CAN-HOC-HUB-AND-SPOKE.md).
+- [Slide Hub-and-Spoke](hub-and-spoke/SLIDE-HUB-AND-SPOKE.html).
+
+---
+
 # Agentic PM
 
 Ứng dụng AI Agent trong lập kế hoạch và phân tích rủi ro dự án.

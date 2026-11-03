@@ -19,3 +19,8 @@ Key nằm trong `.env`/biến môi trường, không commit. Planner/Developer g
 `python -m unittest discover -s tests -v`
 
 Tests dùng model thay thế để không tốn API; AST/QA chạy thật. Đây là demo triển khai lại phạm vi một hàm kiểm tra email, không phải nguyên bản code tác giả hoặc toàn bộ SDLC.
+
+## Slide và bản mô phỏng trước
+
+- [Slide Hub-and-Spoke](SLIDE-HUB-AND-SPOKE.html).
+- [Bản mô phỏng offline trước đây](DEMO-OFFLINE-HUB-AND-SPOKE.html).

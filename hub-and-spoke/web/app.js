@@ -16,7 +16,6 @@ async function api(path,data){
 function remember(){if(session&&sessionToken)sessionStorage.setItem(storageKey,JSON.stringify({id:session.id,token:sessionToken}))}
 function forget(){sessionStorage.removeItem(storageKey);session=null;sessionToken='';lastError=''}
 function table(headers,rows){return '<div class="table-wrap"><table><thead><tr>'+headers.map(h=>'<th>'+esc(h)+'</th>').join('')+'</tr></thead><tbody>'+rows.map(row=>'<tr>'+row.map(v=>'<td>'+esc(v)+'</td>').join('')+'</tr>').join('')+'</tbody></table></div>'}
-function taskTable(data){const rows=[];for(const t of data?.tasks||[])for(let i=0;i<(t.steps||[]).length;i++){const op=t.steps[i];rows.push([t.id,t.name||'',i+1,op.machine,op.duration])}return table(['Nhiệm vụ','Tên','Bước','Tài nguyên','Thời lượng · '+(data?.unit||'theo yêu cầu')],rows)}
 function qaGateHtml(tests,gate){let html='<div class="check"><span>QA · kiểm thử chức năng</span><b class="'+(tests?.pass?'pass':'fail')+'">'+(!tests?'Chưa chạy':tests.pass?'PASS':'FAIL')+'</b></div><div class="check"><span>Governance · phân tích AST</span><b class="'+(gate?.pass?'pass':'fail')+'">'+(!gate?'Chưa chạy':gate.pass?'PASS':'FAIL')+'</b></div>';
  if(tests?.cases?.length)html+='<p class="subtle">'+tests.cases.filter(c=>c.pass).length+'/'+tests.cases.length+' ca kiểm thử đạt.</p>';
  let findings=(gate?.findings||[]).map(f=>'<p>Dòng '+esc(f.line)+' · '+esc(f.rule)+': '+esc(f.message)+'</p>').join('');
@@ -25,26 +24,13 @@ function qaGateHtml(tests,gate){let html='<div class="check"><span>QA · kiểm 
  if(findings)html+='<div class="findings">'+findings+'</div>';
  return html;
 }
-function gantt(){const result=session.result||{},validation=session.validation||{},raw=result.schedule;
- let html='';if(!validation.valid)html+='<div class="violations"><b>Lịch chưa đạt kiểm tra</b>'+(validation.errors||[]).map(e=>'<p>'+esc(e)+'</p>').join('')+'</div>';
- if(!Array.isArray(raw))return html;
- const schedule=raw.slice(0,72).filter(r=>r&&typeof r==='object'&&typeof r.start_time==='number'&&Number.isFinite(r.start_time)&&typeof r.end_time==='number'&&Number.isFinite(r.end_time)&&r.start_time>=0&&r.end_time>r.start_time&&r.end_time<=1000000&&typeof r.machine==='string');
- if(!schedule.length)return html;
- const max=Math.max(...schedule.map(r=>r.end_time)),jobs=[...new Set([...(session.verified?.tasks||[]).map(t=>t.id),...schedule.map(r=>String(r.task_id))])],machines=[...new Set(schedule.map(r=>r.machine))],unit=session.verified?.unit||'đơn vị';
- html+='<div class="key">'+jobs.map((id,i)=>'<span><i style="background:'+colors[i%colors.length]+'"></i>'+esc(id)+'</span>').join('')+'</div>';
- for(const m of machines)html+='<div class="g-row"><span>'+esc(m)+'</span><div class="track">'+schedule.filter(r=>r.machine===m).map(r=>'<div class="block" style="left:'+r.start_time/max*100+'%;width:'+(r.end_time-r.start_time)/max*100+'%;background:'+colors[jobs.indexOf(String(r.task_id))%colors.length]+'" title="'+esc(r.task_id)+'.'+esc(r.step_id)+' · '+r.start_time+'–'+r.end_time+'">'+esc(r.task_id)+'<small>'+r.start_time+'–'+r.end_time+'</small></div>').join('')+'</div></div>';
- html+='<div class="axis"><span>0 '+esc(unit)+'</span><span>'+max+' '+esc(unit)+'</span></div>';
- html+='<div class="result-bar"><span>'+(validation.valid?'✓ Lịch đạt các kiểm tra cục bộ':'✕ Lịch có vi phạm')+'</span><b>'+esc(validation.makespan??'—')+' '+esc(unit)+'</b></div><p class="subtle">Gantt hiển thị lịch Gemini trả về, không thay bằng thuật toán mẫu. Hợp lệ không đồng nghĩa đã chứng minh tối ưu.</p>';
- return html;
-}
 function presentation(){
  if(!config)return {title:'Đang đọc cấu hình',text:'Kết nối server trên máy.',button:'Đang tải…',active:-1};
- if(!config.configured)return {title:'Cần cấu hình Gemini API key',text:'Chạy cau-hinh-api.cmd trong NLTS/real-demo, nhập key của project Free Tier. Sau đó bấm đọc lại cấu hình.',button:'Đọc lại cấu hình key',active:-1};
- if(!session)return {title:kind==='hub'?'Sẵn sàng xử lý yêu cầu bằng Gemini':'Sẵn sàng đọc mô tả công việc',text:kind==='hub'?'Planner tạo story, Developer sinh hoặc sửa mã; QA và Governance kiểm tra bằng Python.':'Gemini xử lý lần lượt bốn vai trò. Sau Verifier, bạn cần đối chiếu dữ liệu trước khi tạo lịch.',button:'Bắt đầu với Gemini →',active:-1};
+ if(!config.configured)return {title:'Cần cấu hình Gemini API key',text:'Chạy cau-hinh-api.cmd trong Agentic_PM/hub-and-spoke, nhập key của project Free Tier. Sau đó bấm đọc lại cấu hình.',button:'Đọc lại cấu hình key',active:-1};
+ if(!session)return {title:'Sẵn sàng xử lý yêu cầu bằng Gemini',text:'Planner tạo story, Developer sinh hoặc sửa mã; QA và Governance kiểm tra bằng Python.',button:'Bắt đầu với Gemini →',active:-1};
  const s=session,phase=s.phase;
  if(s.status==='exhausted')return {title:'Đã dừng sau giới hạn thử lại',text:'Kết quả vẫn chưa đạt kiểm tra. Hãy xem lỗi và sửa yêu cầu trước khi tạo phiên mới.',button:'Đã dừng',active:-1,end:true,error:true};
  if(kind==='hub')return ({ready:{title:'Story Planner chuẩn bị xử lý',text:'Gemini sẽ chuyển yêu cầu thành story và tiêu chí chấp nhận.',button:'Tạo story →',active:0},planned:{title:'Planner đã tạo story',text:s.initial_code?'Bạn có mã đầu vào; tiếp nhận mã này trước khi chạy các cổng kiểm tra.':'Chuyển story cho Developer để Gemini tạo mã Python.',button:s.initial_code?'Tiếp nhận mã đã nhập →':'Developer viết mã →',active:1},coded:{title:'Mã đã được nộp · r'+s.revision,text:'Chạy kiểm thử chức năng và các quy tắc AST độc lập. Bước này không gọi API.',button:'Chạy QA và Governance →',active:2},blocked:{title:'Cổng kiểm tra đang chặn mã',text:'Xem lỗi dưới đây. Developer sẽ nhận phản hồi thật để sửa; tối đa 3 lần sửa.',button:s.repairs>=3?'Dừng phiên chưa đạt':'Yêu cầu Developer sửa →',active:1,error:true},review:{title:'Mã đã qua các kiểm tra hiện tại',text:'Bạn cần xem xét mã và phạm vi quy tắc trước khi chấp nhận. Không tự merge hoặc triển khai.',button:'Tôi đã xem xét · chấp nhận',active:3},accepted:{title:'Đã chấp nhận kết quả phiên',text:'Đây là chấp nhận trong hệ thống demo; không thực hiện merge hoặc triển khai.',button:'Đã hoàn thành',active:3,end:true,success:true}})[phase]||{title:'Trạng thái không xác định',text:'Tạo phiên mới.',button:'Dừng',end:true};
- return ({ready:{title:'Seeker chuẩn bị đọc mô tả',text:'Gemini xác định các nhiệm vụ từ văn bản bạn nhập.',button:'Xác định nhiệm vụ →',active:0},sought:{title:'Seeker đã nhận diện nhiệm vụ',text:'Weaver sẽ lấy từng công đoạn, tài nguyên và thời lượng từ mô tả.',button:'Trích xuất công đoạn →',active:1},woven:{title:'Weaver đã trích xuất dữ liệu',text:'Verifier sẽ đối chiếu dữ liệu với yêu cầu gốc và sửa sai hoặc hỏi lại.',button:'Đối chiếu dữ liệu →',active:2},verified:{title:'Cần bạn đối chiếu dữ liệu trước khi lập lịch',text:'Kiểm tra bảng dưới với yêu cầu gốc. Chỉ tiếp tục khi đủ nhiệm vụ, đúng máy, thời lượng và thứ tự.',button:'Xác nhận dữ liệu · lập lịch →',active:2},clarification:{title:'Cần làm rõ yêu cầu',text:'Verifier phát hiện thiếu thông tin hoặc ràng buộc ngoài phạm vi. Sửa mô tả và tạo phiên mới.',button:'Cần sửa yêu cầu',active:2,end:true,error:true},invalid:{title:'Lịch Gemini sinh chưa đạt kiểm tra',text:'Các lỗi được giữ nguyên. Yêu cầu Architect sửa theo phản hồi, không thay bằng lịch mẫu.',button:s.schedule_attempts>=3?'Dừng phiên chưa đạt':'Yêu cầu Architect sửa lịch →',active:3,error:true},complete:{title:'Lịch đạt kiểm tra cục bộ',text:'Đủ công đoạn, đúng thời lượng, đúng thứ tự và không dùng trùng tài nguyên theo dữ liệu đã xác nhận.',button:'Đã hoàn thành',active:3,end:true,success:true}})[phase]||{title:'Trạng thái không xác định',text:'Tạo phiên mới.',button:'Dừng',end:true};
 }
 function render(){
  const info=presentation();$('status').className='status'+(info.error?' error':info.success?' success':'');$('status').innerHTML='<span class="icon">'+(info.error?'!':info.success?'✓':'→')+'</span><div><h2>'+esc(info.title)+'</h2><p>'+esc(info.text)+'</p></div>';
@@ -57,13 +43,7 @@ function render(){
   if(kind==='hub'){
    if(!session.code&&session.story)html='<div class="story"><h3>'+esc(session.story.title)+'</h3><ul>'+(session.story.acceptance||[]).map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul></div>';
    if(session.code){html='<div class="outputs"><div><p class="subtle">Bản mã r'+session.revision+' · kết quả thực từ agent hoặc mã bạn nhập</p><pre class="code-display" id="source-code"></pre></div><div>'+qaGateHtml(session.qa,session.governance)+'</div></div>'}
-  }else if(session.result)html=gantt();
-  else if(session.verified){
-   if(session.verified.tasks?.length)html=taskTable(session.verified);
-   if(session.verified.needs_clarification)html+='<div class="violations">'+(session.verified.questions||[]).map(q=>'<p>'+esc(q)+'</p>').join('')+'</div>';
-   if(session.verified.changes?.length)html+='<div class="verify-list"><b>Verifier đã chỉnh:</b> '+session.verified.changes.map(esc).join(' · ')+'</div>';
-  }else if(session.weaver)html=taskTable(session.weaver);
-  else if(session.seeker)html='<div class="task-cards">'+session.seeker.tasks.map(t=>'<article class="task-card"><h3>'+esc(t.id)+'</h3><p>'+esc(t.name)+'</p></article>').join('')+'</div>';
+  }
  }
  $('output').innerHTML=html;if($('source-code'))$('source-code').textContent=session.code;
  $('history').innerHTML=(session?.events||[]).map(e=>'<div class="log-row"><b>'+esc(e.actor)+'</b><span>'+esc(e.message)+'</span></div>').join('')||'<p class="subtle">Chưa có phiên xử lý.</p>';
@@ -87,9 +67,6 @@ if(kind==='hub'){
  $('sample-gate').onclick=e=>{e.preventDefault();$('gate-code').value=sample};
  $('gate-code').value=sample;
  $('gate-run').onclick=async()=>{if(!config)return;$('gate-run').disabled=true;$('gate-result').textContent='Đang kiểm tra AST và chạy các ca QA…';try{const result=await api('/api/gate',{code:$('gate-code').value});$('gate-result').innerHTML=qaGateHtml(result.qa,result.governance)+'<p class="subtle">Kiểm tra cục bộ thực, không gọi API.</p>'}catch(e){$('gate-result').textContent=e.message}finally{$('gate-run').disabled=false}};
-}else{
- $('lead').textContent='Nhập yêu cầu bằng lời; đối chiếu công đoạn trước khi Gemini tạo lịch và Python kiểm tra ràng buộc.';
- $('scope').textContent='Phạm vi: tối đa 8 nhiệm vụ / 36 công đoạn; mỗi nhiệm vụ là chuỗi bước, mỗi bước dùng một tài nguyên có sức chứa 1; thời lượng xác định. Yêu cầu thiếu dữ liệu hoặc có ràng buộc ngoài phạm vi sẽ cần làm rõ.';
- $('note').textContent='Dựa trên bốn vai trò MANS; có thêm bước bạn xác nhận dữ liệu và bộ kiểm tra lịch độc lập. Đây không phải bản tái lập toàn bộ benchmark. Lịch hợp lệ không được mặc định là tối ưu.';
 }
+
 render();boot();

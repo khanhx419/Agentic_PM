@@ -16,8 +16,8 @@ def initial(kind,description,initial_code=''):
     if not isinstance(description,str) or not 20<=len(description)<=10000:raise ValueError('Yêu cầu cần từ 20 đến 10.000 ký tự.')
     if not isinstance(initial_code,str) or len(initial_code)>12000:raise ValueError('Mã đầu vào quá dài.')
     return {'kind':kind,'description':description,'initial_code':initial_code,'phase':'ready','status':'ready',
-            'story':None,'code':'','revision':0,'qa':None,'governance':None,'seeker':None,'weaver':None,'verified':None,
-            'result':None,'validation':None,'schedule_attempts':0,'repairs':0,'events':[],'calls':[],'last_error':None,
+            'story':None,'code':'','revision':0,'qa':None,'governance':None,
+            'repairs':0,'events':[],'calls':[],'last_error':None,
             'created_at':time.time(),'version':0}
 
 def event(s,actor,message):s['events'].append({'actor':actor,'message':message,'time':time.time()})
