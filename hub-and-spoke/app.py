@@ -1,4 +1,4 @@
-"""Run python app.py; stdlib only, binds loopback, no mock model in this server."""
+"""Run with the project venv; LangGraph orchestration, loopback HTTP, no mock model."""
 import argparse
 import json
 import secrets

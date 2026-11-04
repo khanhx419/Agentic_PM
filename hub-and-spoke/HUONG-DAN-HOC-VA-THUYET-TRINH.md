@@ -15,6 +15,51 @@ Thầy đã nghe Hub-and-Spoke và yêu cầu làm thử demo. Trình bày một
 
 Nếu port 8767 đang dùng, đóng đúng cửa sổ server cũ của mình hoặc dùng `.venv\Scripts\python.exe app.py --port 8768` rồi mở đúng port. Không tắt tiến trình không biết là gì.
 
+## 2.1. Hệ thống bên trong gồm gì? Phần lõi có phải Python không?
+
+**Có. Backend và phần điều phối, gọi API, kiểm tra, lưu dữ liệu đều viết bằng Python.** Giao diện là HTML/CSS/JavaScript. LangGraph là thư viện Python chạy trên máy; model Gemini chạy ở dịch vụ Google, được Python gọi qua API, không chạy local trong demo này.
+
+### Những file Python chính
+
+| File | Trách nhiệm | Khi giải thích với thầy |
+|---|---|---|
+| `app.py` | Chạy HTTP server local, nhận yêu cầu, quản lý truy cập phiên và trả JSON | “Đây là cửa vào backend, không phải nơi model tự quyết toàn bộ quy trình.” |
+| `workflow.py` | Dựng và thực thi LangGraph: Hub, Planner, Developer, QA, Governance, nhánh sửa/chấp nhận/dừng | “Đây là lõi điều phối. Hub chọn bước theo trạng thái và chính sách.” |
+| `pipeline.py` | Prompt vai trò, khởi tạo trạng thái, gọi model và đọc mã trả về; giữ hàm advance tương thích | “Đây là dữ liệu/chỉ dẫn cho vai trò. Phần điều phối thực đã chuyển sang workflow.py.” |
+| `llm.py` | Gọi Gemini REST, đọc JSON, thống kê token/thời gian, xử lý lỗi mạng/quota | “Planner và Developer dùng API thật qua file này.” |
+| `governance.py` | Quét AST, phát hiện vi phạm, che secret phát hiện được, gọi QA worker | “Quy tắc kiểm soát mã được viết bằng Python, không nhờ Gemini tự phán PASS.” |
+| `qa_worker.py` | Thông dịch tập con AST và chạy 14 ca thử email trong worker riêng | “Đây là phần kiểm tra hành vi; không dùng exec để chạy Python tùy ý.” |
+| `store.py` | Lưu phiên vào SQLite, quản lý token, thời hạn và khóa phiên | “Tải lại trang cùng tab có thể tiếp tục phiên đã lưu.” |
+| `config.py` | Đọc model/key/cấu hình và cung cấp thông tin công khai không chứa key | “Key ở backend, không nằm trong JavaScript hoặc graph state.” |
+| `setup_api.py` | Nhập key trên máy và ghi cấu hình cục bộ | “Chỉ chạy khi cấu hình, không phải agent xử lý nghiệp vụ.” |
+
+### Các file và thư mục hỗ trợ
+
+- `web/hub.html`: cấu trúc trang; `web/style.css`: trình bày; `web/app.js`: nhận thao tác, gọi backend và hiển thị kết quả. Giao diện không tự tính PASS/FAIL.
+- `cai-dat.cmd`: tạo môi trường và cài dependency; `cau-hinh-api.cmd`: mở cấu hình key; `start.cmd`: khởi động Python server.
+- `requirements.txt`, `requirements-lock.txt`: phiên bản thư viện; `.venv/`: môi trường Python local.
+- `.env`: cấu hình bí mật local; `.state/sessions.sqlite3`: dữ liệu phiên. Hai phần này không đưa lên GitHub.
+- `export_graph.py`, `WORKFLOW.mmd`: xuất/xem cấu trúc graph thực, không gọi model.
+- `verify_live.py`: chủ động kiểm tra Gemini thật khi có cờ `--live`; không chạy ngầm khi mở giao diện.
+- `tests/`: kiểm thử có model thay thế được gắn nhãn; `verification/`: báo cáo và ảnh kiểm tra; `upstream-reference/`: nguồn notebook và license để đối chiếu.
+
+### Đường đi của một thao tác
+
+1. Người dùng bấm nút trên trang → `web/app.js` gửi HTTP.
+2. `app.py` kiểm tra token và version, lấy trạng thái phiên từ `store.py`.
+3. `workflow.run_step` chạy LangGraph. Node Coordinator chọn bước theo trạng thái.
+4. Nếu là Planner/Developer: gọi hàm trong `pipeline.py` → `llm.py` → Gemini → nhận JSON. Nếu là kiểm tra: chạy `qa_worker.py` và quy tắc trong `governance.py`.
+5. Graph quyết định trạng thái tiếp theo; `app.py` lưu kết quả bằng `store.py` và trả JSON.
+6. `web/app.js` hiển thị mã, kết quả kiểm tra và nút cho bước tiếp theo.
+
+**Luồng nghiệp vụ:** yêu cầu → Planner → Developer → QA và Governance → không đạt thì sửa rồi kiểm tra lại → đạt thì chờ người dùng chấp nhận. Mỗi lần bấm chạy một bước nghiệp vụ; LangGraph không tự gọi hết mọi agent trong một lần bấm.
+
+**Cần học kỹ nhất:** `workflow.py`, `pipeline.py`, `governance.py`, `qa_worker.py`, `llm.py`. Sau đó đọc `app.py` và `store.py` để hiểu cách hệ thống nối với giao diện và lưu phiên.
+
+### Đoạn nói mẫu khi thầy hỏi hệ thống xây bằng gì
+
+“Phần lõi em viết bằng Python, dùng LangGraph để điều phối các node. Giao diện dùng HTML, CSS và JavaScript để gửi yêu cầu và hiển thị. Planner và Developer gọi Gemini API; QA và Governance chạy Python trên máy. Trạng thái phiên lưu trong SQLite. Trong các file, workflow.py là phần điều phối, llm.py nối với model, còn governance.py và qa_worker.py thực hiện kiểm tra độc lập.”
+
 ## 3. Mở đầu — khoảng 45 giây
 
 Có thể nói:
