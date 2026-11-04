@@ -27,6 +27,20 @@ Nếu thầy hỏi nguồn:
 
 Mở `SOURCES-AND-CHANGES.md` nếu cần chỉ chính xác phần kế thừa. Không nói “em dùng code luận văn” hoặc “chỉ clone repo về chạy”.
 
+### Nguồn mở ngay khi thầy hỏi
+
+| Nguồn | Dùng vào phần nào? | Cách nói ngắn |
+|---|---|---|
+| Tài liệu Hub-and-Spoke / Governance đã báo cáo | Ý tưởng kiến trúc điều phối và cổng kiểm soát | “Đây là cơ sở kiến trúc của phần em đã trình bày.” |
+| [Repo LangGraph chính thức](https://github.com/langchain-ai/langgraph) | Thư viện thực thi workflow | “Em sử dụng framework có sẵn để tổ chức các bước.” |
+| [Code Assistant của LangChain, 27/02/2024](https://www.langchain.com/blog/code-execution-with-langgraph) | Mẫu sinh mã, kiểm tra, phản hồi lỗi và sửa | “Em tham khảo cơ chế generate–check–retry ở ví dụ chính thức.” |
+| [Notebook gốc cố định theo commit](https://github.com/langchain-ai/langgraph/blob/23961cff61a42b52525f3b20b4094d8d2fba1744/docs/docs/tutorials/code_assistant/langgraph_code_assistant.ipynb) | Code tham khảo có thể mở đối chiếu | “Em giữ bản nguồn, commit và giấy phép MIT trong repo.” |
+| [Graph API](https://docs.langchain.com/oss/python/langgraph/graph-api) | StateGraph, node, edge, compile và invoke | “Em viết lại các node theo bài toán demo và dùng API của LangGraph.” |
+
+**Phần bổ sung trong demo:** Planner, cổng Governance AST, QA với 14 ca thử email, che secret phát hiện được trước khi gửi sửa, xác nhận của người dùng, lưu phiên và giao diện. Ví dụ gốc dùng exec để kiểm tra mã; demo thay bằng bộ thông dịch AST giới hạn. Không tuyên bố phát hiện mọi secret hoặc tái lập toàn bộ luận văn.
+
+Đối chiếu chi tiết: [Nguồn mã và phần bổ sung](SOURCES-AND-CHANGES.md). Bản nguồn và license nằm ở [upstream-reference](upstream-reference/README.md). Kết quả chạy đã ghi nhận ở [VERIFICATION.md](VERIFICATION.md); đó là bằng chứng lần chạy trước, không mặc định là kết quả đang trình diễn.
+
 ## 4. Demo luồng bình thường — khoảng 2 phút
 
 Giữ yêu cầu mặc định: hàm `validate_email(email)` kiểm tra email cơ bản. Để trống ô mã có sẵn.
