@@ -21,7 +21,6 @@ LangGraph là thư viện chạy local. Bước gọi Gemini cần mạng, có q
 | [HUONG-DAN-HOC-VA-THUYET-TRINH.md](HUONG-DAN-HOC-VA-THUYET-TRINH.md) | Kịch bản demo, lời nói và câu hỏi thường gặp |
 | [SOURCES-AND-CHANGES.md](SOURCES-AND-CHANGES.md) | Nguồn mã, phần kế thừa, phần bổ sung và phạm vi |
 | [SLIDE-HUB-AND-SPOKE.html](SLIDE-HUB-AND-SPOKE.html) | Slide báo cáo trước đây; ví dụ triển khai mới giải thích bằng tài liệu demo |
-| [DEMO-OFFLINE-HUB-AND-SPOKE.html](DEMO-OFFLINE-HUB-AND-SPOKE.html) | Bản mô phỏng cũ, tách rõ với hệ thống gọi API |
 
 ## Code chính
 
@@ -32,7 +31,7 @@ LangGraph là thư viện chạy local. Bước gọi Gemini cần mạng, có q
 - `llm.py`: Gemini REST, JSON, lỗi quota/mạng, token và thời gian thực.
 - `app.py`, `store.py`, `web/`: HTTP local, lưu phiên, giao diện.
 
-Một lần bấm chạy Hub → bước nghiệp vụ → lưu kết quả. Bước kiểm tra gồm QA → Governance → nhánh PASS/FAIL. Vòng sửa cần bấm tiếp để quan sát; không có tự gọi API liên tục ngầm.
+Nhập yêu cầu hoặc dùng mẫu trên trang rồi bấm **Chạy yêu cầu**. Giao diện gọi liên tiếp các bước của Hub và hiện kế hoạch, mã, kết quả kiểm tra cùng nhật ký. Nếu cần sửa, workflow tự thử lại trong giới hạn. Khi hai cổng đạt, người dùng xem mã và bấm chấp nhận.
 
 ## Kiểm thử và xem graph
 

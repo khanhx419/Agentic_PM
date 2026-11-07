@@ -29,9 +29,7 @@ Không có `--live` thì script không gọi model. Báo cáo cũ chỉ được
 
 ## Giao diện Edge
 
-[verification/ui-summary.json](verification/ui-summary.json) dùng **LLM thay thế trong test fixture**, LangGraph và AST/QA thật. Đã kiểm tra một nút chính khi phần mở rộng đóng, chặn secret, sửa/kiểm tra lại, chấp nhận, tải lại giữ phiên, không lỗi JavaScript và vừa màn hình 390px.
-
-Ảnh `ui-blocked-test-fixture.png` và `ui-accepted-test-fixture.png` là ảnh của fixture, không phải ảnh phản hồi Gemini thật.
+Bài kiểm thử Edge dùng model thay thế và chạy LangGraph, AST và QA thật. Bài kiểm thử xác nhận luồng nhập yêu cầu, tự sửa sau khi bị chặn, chấp nhận kết quả, khôi phục phiên và bố cục trên màn hình hẹp.
 
 Test giao diện là tùy chọn cho người phát triển: cần Node.js, Playwright và Edge. Chạy `node tests/ui_smoke.cjs` khi môi trường Node đã có Playwright. `PLAYWRIGHT_MODULE` cho phép chỉ module Playwright ở vị trí khác. Người dùng demo chỉ cần cai-dat.cmd và start.cmd, không cần Node/Playwright.
 

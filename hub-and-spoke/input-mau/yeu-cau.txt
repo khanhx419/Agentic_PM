@@ -1,0 +1,1 @@
+Viết hàm validate_email(email), bỏ khoảng trắng hai đầu, đúng một @, local part không rỗng, domain có dấu chấm, không có khoảng trắng bên trong.
