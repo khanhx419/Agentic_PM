@@ -6,3 +6,10 @@ __pycache__/
 *.pyc
 .DS_Store
 Thumbs.db
+
+# Local presentation and study notes
+/02-thuyet-trinh.md
+/03-huong-dan-demo.md
+/hub-and-spoke/tai-lieu/HUONG-DAN-HOC-VA-THUYET-TRINH.md
+/hub-and-spoke/tai-lieu/KIEN-THUC-CAN-HOC-HUB-AND-SPOKE.md
+/hub-and-spoke/tai-lieu/GIAI-THICH-CODE-HUB-AND-SPOKE.docx

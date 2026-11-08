@@ -1,10 +1,8 @@
 ## Hub-and-Spoke / Governance — demo hiện tại
 
 - [Chạy demo Hub-and-Spoke](hub-and-spoke/README.md).
-- [File kiến thức cần học](hub-and-spoke/KIEN-THUC-CAN-HOC-HUB-AND-SPOKE.md).
-- [Nguồn mã và phần bổ sung](hub-and-spoke/SOURCES-AND-CHANGES.md).
-- [Kịch bản demo với thầy](hub-and-spoke/HUONG-DAN-HOC-VA-THUYET-TRINH.md).
-- [Slide Hub-and-Spoke](hub-and-spoke/SLIDE-HUB-AND-SPOKE.html).
+- [Nguồn mã và phần bổ sung](hub-and-spoke/tai-lieu/SOURCES-AND-CHANGES.md).
+- [Slide Hub-and-Spoke](hub-and-spoke/tai-lieu/SLIDE-HUB-AND-SPOKE.html).
 
 ---
 
@@ -31,8 +29,6 @@ Truy cập `http://localhost:8080`.
 | Tệp | Nội dung |
 | --- | --- |
 | [01-slide.html](01-slide.html) | 13 slide trình bày |
-| [02-thuyet-trinh.md](02-thuyet-trinh.md) | Lời thuyết trình, giải thích và câu hỏi có thể gặp |
-| [03-huong-dan-demo.md](03-huong-dan-demo.md) | Kịch bản thao tác demo |
 | [tai-lieu-goc.pdf](tai-lieu-goc.pdf) | Bài báo nguồn |
 | [demo/index.html](demo/index.html) | Giao diện demo |
 | [demo/app.js](demo/app.js) | Điều phối, lập lịch, phân tích rủi ro và phê duyệt |

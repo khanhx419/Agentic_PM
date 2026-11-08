@@ -25,12 +25,16 @@
         <label for="initial-code">Mã cần kiểm tra hoặc sửa</label>
         <textarea id="initial-code" rows="7" maxlength="12000" spellcheck="false" placeholder="Để trống nếu muốn Developer viết mã mới."></textarea>
       </details>
-      <button type="submit" id="next">Chạy yêu cầu</button>
+      <div class="actions">
+        <button type="submit" id="next">Chạy yêu cầu</button>
+        <button type="button" class="link" id="new-request">Yêu cầu mới</button>
+      </div>
       <p id="connection" class="muted" role="status"></p>
     </form>
     <section class="panel" aria-labelledby="result-heading">
       <h2 id="result-heading">Đầu ra</h2>
       <p id="status" role="status">Kết quả sẽ xuất hiện sau khi chạy yêu cầu.</p>
+      <p id="step-explanation" class="muted" hidden></p>
       <p id="error" role="alert" hidden></p>
       <div id="output"></div>
       <details class="history" id="history-panel" hidden>

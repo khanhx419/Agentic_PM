@@ -39,7 +39,13 @@ Hub trong bản này **điều phối theo quy tắc Python**, không phải m�
 
 LangGraph chạy các node và các nhánh của graph. SQLite vẫn do `store.py` lưu; bản này chưa dùng LangGraph checkpointer. Xác nhận của người dùng đi qua API ở lần invoke tiếp theo; chưa dùng `interrupt()` của LangGraph. Không đăng ký LangSmith hoặc gửi trace lên một dịch vụ riêng trong cấu hình demo mặc định.
 
-Mỗi lần bấm chạy một bước nghiệp vụ rồi graph kết thúc. Vòng sửa diễn ra qua nhiều lần invoke, dùng trạng thái phiên đã lưu; không phải một invoke duy nhất tự chạy toàn bộ workflow.
+Mỗi lần invoke chạy một bước nghiệp vụ. Sau một lần bấm Chạy yêu cầu, giao diện gọi backend nhiều lần. Mỗi lần dùng trạng thái phiên đã lưu để chạy bước tiếp theo.
+
+## Cần viết thêm gì ngoài giao diện
+
+LangGraph cung cấp cơ chế chạy graph. Ví dụ Code Assistant minh họa việc sinh mã, kiểm tra rồi dùng phản hồi để sửa. Demo dùng cơ chế đó để tự định nghĩa Coordinator, Planner và Developer. Backend còn có QA 14 ca email, quy tắc Governance trên AST, lưu lịch sử từng bản mã và xác nhận của người dùng. Giao diện gửi yêu cầu, gọi backend để chạy lần lượt và hiển thị kết quả.
+
+Phần tương đồng với tài liệu báo cáo là cách chia vai trò, điều phối qua Hub và đưa mã lỗi quay lại sửa. Phạm vi demo tập trung vào pha lập trình với một hàm Python. Bảng đối chiếu phía trên mô tả phần tham khảo từ Code Assistant và phần triển khai trong demo.
 
 ## Cách diễn đạt với thầy
 

@@ -8,7 +8,7 @@
 
 ## Gemini thật
 
-Nguồn số liệu: [verification/live-summary.json](verification/live-summary.json). Model của lần chạy: `gemini-3.5-flash-lite`. Key chỉ đọc từ cấu hình cục bộ, không ghi trong báo cáo. Tổng thời gian hai kịch bản: 22.67 giây; đây là một lần chạy, không phải benchmark.
+Nguồn số liệu: [verification/live-summary.json](../verification/live-summary.json). Model của lần chạy: `gemini-3.5-flash-lite`. Key chỉ đọc từ cấu hình cục bộ, không ghi trong báo cáo. Tổng thời gian hai kịch bản: 22.67 giây; đây là một lần chạy, không phải benchmark.
 
 | Kịch bản | Kết quả | Lượt gọi Gemini | Lần sửa | QA | AST |
 |---|---|---:|---:|---|---|

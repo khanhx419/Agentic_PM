@@ -86,6 +86,18 @@ def build_graph(model):
 
     def gate_result(run, passed):
         s = run["session"]
+        # Keep a summary for each revision when repair clears the current checks.
+        cases = s["qa"].get("cases", [])
+        s.setdefault("check_history", []).append({
+            "revision": s["revision"],
+            "passed": passed,
+            "qa_passed": s["qa"]["pass"],
+            "qa_pass_count": sum(case["pass"] for case in cases),
+            "qa_total": len(cases),
+            "governance_passed": s["governance"]["pass"],
+            "findings": [{"line": item["line"], "rule": item["rule"]}
+                         for item in s["governance"].get("findings", [])],
+        })
         s["phase"] = s["status"] = "review" if passed else "blocked"
         return {"session": s}
 

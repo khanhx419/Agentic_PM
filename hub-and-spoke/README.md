@@ -13,14 +13,10 @@ Nếu port đang dùng: chạy `.venv\Scripts\python.exe app.py --port 8768` t�
 
 LangGraph là thư viện chạy local. Bước gọi Gemini cần mạng, có quota/chi phí theo tài khoản. AST/QA không gọi model. Không cần tài khoản LangSmith hay dịch vụ LangGraph Cloud.
 
-## Đọc để trình bày với thầy
+## Slide và nguồn tham khảo
 
-| File | Đọc để làm gì? |
-|---|---|
-| [KIEN-THUC-CAN-HOC-HUB-AND-SPOKE.md](KIEN-THUC-CAN-HOC-HUB-AND-SPOKE.md) | Kiến thức và thứ tự đọc code |
-| [HUONG-DAN-HOC-VA-THUYET-TRINH.md](HUONG-DAN-HOC-VA-THUYET-TRINH.md) | Kịch bản demo, lời nói và câu hỏi thường gặp |
-| [SOURCES-AND-CHANGES.md](SOURCES-AND-CHANGES.md) | Nguồn mã, phần kế thừa, phần bổ sung và phạm vi |
-| [SLIDE-HUB-AND-SPOKE.html](SLIDE-HUB-AND-SPOKE.html) | Slide báo cáo trước đây; ví dụ triển khai mới giải thích bằng tài liệu demo |
+- [Slide Hub-and-Spoke](tai-lieu/SLIDE-HUB-AND-SPOKE.html).
+- [Nguồn mã và phần bổ sung](tai-lieu/SOURCES-AND-CHANGES.md).
 
 ## Code chính
 
@@ -56,4 +52,4 @@ Tests dùng model thay thế được gắn nhãn rõ, không tốn API. AST, QA
 
 ## Kết quả kiểm tra
 
-Xem [VERIFICATION.md](VERIFICATION.md): 19 tests, kiểm tra giao diện và hai luồng Gemini thật qua LangGraph.
+Xem [VERIFICATION.md](tai-lieu/VERIFICATION.md): 19 tests, kiểm tra giao diện và hai luồng Gemini thật qua LangGraph.
