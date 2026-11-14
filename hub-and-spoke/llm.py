@@ -7,15 +7,11 @@ import urllib.error
 from config import settings
 
 class ModelError(ValueError):
-    """Lớp ngoại lệ tùy chỉnh cho các lỗi liên quan đến Model LLM"""
     pass
 
 
+# Làm sạch markdown fence và ép kiểu sang dict JSON
 def parse_object(text):
-    """
-    Làm sạch phản hồi từ LLM (loại bỏ markdown fence ```json nếu có)
-    và ép kiểu dữ liệu về dictionary JSON.
-    """
     text = re.sub(r'^```(?:json)?\s*|\s*```$', '', text.strip())
     try:
         data = json.loads(text)
@@ -26,14 +22,8 @@ def parse_object(text):
     return data
 
 
-# GATEWAY KẾT NỐI GOOGLE GEMINI API
+# Gateway gọi Gemini API qua HTTP REST (rate limit delay 2s)
 class Gemini:
-    """
-    Quản lý việc gửi request REST trực tiếp đến Google Generative Language API.
-    Đặc điểm:
-    - Mỗi bước chạy chỉ gọi đúng 1 request độc lập.
-    - Có rate limit delay 2s giữa các lần gọi để tránh lỗi HTTP 429 (Too Many Requests).
-    """
     _lock = threading.Lock()
     _last = 0.0
 
@@ -48,16 +38,14 @@ class Gemini:
         if len(user) > 45000:
             raise ModelError('Dữ liệu agent quá dài cho phạm vi demo.')
 
-        # Cấu hình tham số sinh của LLM (Temperature thấp để code ổn định và chính xác)
         generation = {
             'temperature': 0.1,
             'maxOutputTokens': min(max(c['max_output'], 512), 8192),
-            'responseMimeType': 'application/json'  # Ép Gemini trả về định dạng JSON thuần
+            'responseMimeType': 'application/json'
         }
         if c['model'] in ('gemini-2.5-flash', 'gemini-2.5-flash-lite'):
-            generation['thinkingConfig'] = {'thinkingBudget': 0}
+            generation['thinkingConfig']={'thinkingBudget': 0}
 
-        # Đóng gói Prompt hệ thống và nội dung người dùng
         body = {
             'systemInstruction': {
                 'parts': [{
@@ -68,14 +56,12 @@ class Gemini:
             'generationConfig': generation
         }
 
-        # Tạo HTTP Request gọi trực tiếp endpoint của Google
         req = urllib.request.Request(
             'https://generativelanguage.googleapis.com/v1beta/models/' + c['model'] + ':generateContent',
             data=json.dumps(body).encode(),
             headers={'Content-Type': 'application/json', 'x-goog-api-key': c['key']}
         )
 
-        # Sử dụng Lock và độ trễ tối thiểu giữa 2 lần gọi để bảo vệ quota API
         with self._lock:
             delay = 2 - (time.monotonic() - self._last)
             if delay > 0:
@@ -101,7 +87,6 @@ class Gemini:
             finally:
                 self._last = time.monotonic()
 
-        # Trích xuất nội dung văn bản do mô hình sinh ra
         candidate = (data.get('candidates') or [{}])[0]
         if candidate.get('finishReason') not in ('STOP', None):
             raise ModelError('Gemini chưa hoàn tất câu trả lời (' + str(candidate.get('finishReason')) + '). Thử lại hoặc tăng giới hạn output.')
@@ -110,7 +95,6 @@ class Gemini:
             raise ModelError('Gemini không trả nội dung; có thể bị chặn hoặc thiếu quyền model.')
 
         usage = data.get('usageMetadata', {})
-        # Trả về kết quả JSON đã parse kèm siêu dữ liệu (thời gian chạy, số lượng token sử dụng)
         return parse_object(text), {
             'role': role,
             'provider': 'Gemini',

@@ -13,28 +13,20 @@ from workflow import run_step as advance
 from governance import scan, qa
 from store import Store
 
-# KHỞI TẠO HTTP SERVER CHO DEMO HUB-AND-SPOKE
-# Web UI chỉ là nơi gửi yêu cầu và nhận hiển thị; toàn bộ quyết định rẽ nhánh,
-# điều phối LangGraph và kiểm tra PASS/FAIL đều được thực thi chặt chẽ ở Backend.
+# Server phục vụ Web UI và điều phối LangGraph trên localhost
 def make_server(port=8767, model=None, store=None):
-    # Tạo mã token ngẫu nhiên bảo vệ phiên làm việc của ứng dụng
     app_token = secrets.token_urlsafe(32)
-    # Khởi tạo database SQLite (.state/sessions.sqlite3)
     database = store or Store(ROOT / '.state')
-    # Khởi tạo client kết nối Gemini API
     llm = model or Gemini()
-
-    # Thiết lập bảo mật mạng: Chỉ cho phép truy cập cục bộ (localhost / 127.0.0.1)
     allowed_hosts = {f'127.0.0.1:{port}', f'localhost:{port}'}
     allowed_origins = {'http://' + h for h in allowed_hosts}
 
     class Handler(BaseHTTPRequestHandler):
         def log_message(self, *args):
-            # Tắt ghi log mặc định ra terminal để tránh làm lộ key hoặc dữ liệu nhạy cảm
             pass
 
         def headers_common(self):
-            # Thiết lập các tiêu chuẩn header bảo mật web (CSP, chống Clickjacking, No-cache)
+            # Header bảo mật cơ bản: chặn iframe, chống sniff MIME và no-cache
             self.send_header('X-Content-Type-Options', 'nosniff')
             self.send_header('X-Frame-Options', 'DENY')
             self.send_header('Referrer-Policy', 'no-referrer')
@@ -43,7 +35,6 @@ def make_server(port=8767, model=None, store=None):
                              "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'")
 
         def send(self, status, data, mime='application/json; charset=utf-8'):
-            """Hàm tiện ích gửi phản hồi HTTP về cho trình duyệt"""
             body = json.dumps(data, ensure_ascii=False).encode() if mime.startswith('application/json') else data
             self.send_response(status)
             self.headers_common()
@@ -58,17 +49,16 @@ def make_server(port=8767, model=None, store=None):
         def valid_host(self):
             return self.headers.get('Host') in allowed_hosts
 
-        # XỬ LÝ CÁC YÊU CẦU GET (Tải trang HTML/JS/CSS và lấy thông tin cấu hình)
         def do_GET(self):
             if not self.valid_host():
                 return self.send(403, {'error': 'Chỉ phục vụ localhost.'})
             parsed = urllib.parse.urlsplit(self.path)
 
-            # API 1: Lấy cấu hình công khai (Tên model, trạng thái API key, port)
+            # Lấy thông tin cấu hình (model, trạng thái API key)
             if parsed.path == '/api/config':
                 return self.send(200, {**public_settings(), 'app_token': app_token, 'port': port})
 
-            # API 2: Lấy dữ liệu chi tiết của một phiên làm việc (Session) hoặc xuất file JSON
+            # Lấy dữ liệu phiên làm việc
             if parsed.path in ('/api/session', '/api/export'):
                 try:
                     sid = urllib.parse.parse_qs(parsed.query).get('id', [''])[0]
@@ -77,7 +67,7 @@ def make_server(port=8767, model=None, store=None):
                 except ValueError as error:
                     return self.send(404, {'error': str(error)})
 
-            # Phục vụ các tệp giao diện Web tĩnh (Static files)
+            # Phục vụ file tĩnh giao diện web
             paths = {'/': 'hub.html', '/hub': 'hub.html', '/assets/app.js': 'app.js', '/assets/style.css': 'style.css'}
             if parsed.path not in paths:
                 return self.send(404, {'error': 'Không tìm thấy trang.'})
@@ -87,7 +77,6 @@ def make_server(port=8767, model=None, store=None):
             mime = 'text/javascript; charset=utf-8' if file.suffix == '.js' else 'text/css; charset=utf-8' if file.suffix == '.css' else 'text/html; charset=utf-8'
             self.send(200, file.read_bytes(), mime)
 
-        # XỬ LÝ CÁC YÊU CẦU POST (Tạo phiên, chạy đồ thị LangGraph, quét kiểm tra)
         def do_POST(self):
             if not self.valid_host() or self.headers.get('Origin') not in (*allowed_origins, None):
                 return self.send(403, {'error': 'Nguồn yêu cầu không hợp lệ.'})
@@ -104,25 +93,22 @@ def make_server(port=8767, model=None, store=None):
                 if not isinstance(data, dict):
                     raise ValueError('Yêu cầu phải là JSON object.')
 
-                # API POST 1: Tạo một phiên làm việc mới khi người dùng nhập yêu cầu
+                # Khởi tạo phiên mới
                 if self.path == '/api/sessions':
                     state, token = database.create(initial(data.get('kind'), data.get('description'), data.get('initial_code', '')))
                     return self.send(201, {'session': state, 'session_token': token})
 
-                # API POST 2: Cổng kiểm tra nhanh độc lập (Governance AST scan + QA test)
+                # Cổng kiểm tra tĩnh độc lập
                 if self.path == '/api/gate':
                     code = data.get('code')
                     gate = scan(code)
                     tests = qa(code) if isinstance(code, str) and 0 < len(code) <= 12000 else {'pass': False, 'cases': [], 'error': 'Mã không hợp lệ.'}
                     return self.send(200, {'governance': gate, 'qa': tests, 'accepted': gate['pass'] and tests['pass'], 'model_calls': 0})
 
-                # API POST 3: ĐIỀU PHỐI BƯỚC TIẾP THEO QUA LANGGRAPH
-                # Người dùng bấm 'Chạy yêu cầu' hoặc 'Chấp nhận kết quả' -> gọi vào đây
+                # Chuyển bước tiếp theo trong LangGraph
                 if self.path == '/api/next':
                     sid = data.get('id')
                     state = database.get(sid, self.headers.get('X-Session-Token', ''))
-
-                    # Sử dụng Lock để ngăn chặn 2 request bấm nút dồn dập cùng lúc làm sai lệch trạng thái đồ thị
                     lock = database.lock(sid)
                     if not lock.acquire(blocking=False):
                         return self.send(409, {'error': 'Bước trước đang xử lý, vui lòng chờ.'})
@@ -130,10 +116,7 @@ def make_server(port=8767, model=None, store=None):
                         state = database.get(sid, self.headers.get('X-Session-Token', ''))
                         if data.get('version') != state['version']:
                             return self.send(409, {'error': 'Trạng thái đã thay đổi. Nạp lại phiên trước khi chạy tiếp.', 'session': state})
-
-                        # GỌI HÀM ADVANCE (tức workflow.run_step) ĐỂ CHẠY ĐỒ THỊ LANGGRAPH
                         new = advance(state, llm, data.get('confirmed') is True)
-                        # Lưu trạng thái mới vào database SQLite
                         database.save(new)
                         return self.send(200, {'session': new})
                     except (ValueError, ModelError) as error:
@@ -160,7 +143,6 @@ def make_server(port=8767, model=None, store=None):
     return server
 
 
-# ĐIỂM BẮT ĐẦU CHẠY TỪ DÒNG LỆNH (CLI ENTRYPOINT)
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--port', type=int, default=8767)

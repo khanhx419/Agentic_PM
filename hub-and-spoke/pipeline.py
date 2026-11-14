@@ -1,19 +1,14 @@
 ﻿import time
 from llm import ModelError
 
-# HỆ THỐNG PROMPT CHO CÁC SPOKE AGENTS
-
-# Quy định chung bắt buộc cho LLM:
-# - Không được bịa đặt kết quả kiểm thử (chỉ Python backend mới có quyền phán quyết PASS/FAIL)
-# - Chỉ trả về JSON thuần túy, giải thích bằng tiếng Việt.
+# Hướng dẫn prompt chung: chỉ trả lời bằng JSON, không được tự bịa kết quả test
 COMMON = (
     'The user is demonstrating a small real system. Do not fabricate a test result or say a checker passed. '
     'All checks run in separate trusted Python code. Explanations in Vietnamese, JSON keys as specified. '
 )
 
 PROMPTS = {
-    # Prompt cho Planner Spoke:
-    # Yêu cầu phân rã bài toán thành User Story nhỏ gọn cho hàm validate_email(email) -> bool
+    # Planner: tạo story cho hàm validate_email(email) -> bool
     'planner': COMMON + (
         'You are Story Planner. Break the request into ONE narrowly scoped story for a Python function '
         'validate_email(email) -> bool. Contract: trim surrounding whitespace, accept a simple address with '
@@ -23,8 +18,7 @@ PROMPTS = {
         'State unsupported requests in scope, do not silently broaden the task.'
     ),
 
-    # Prompt cho Developer Spoke:
-    # Hướng dẫn viết hàm Python đúng tiêu chuẩn, không dùng vòng lặp phức tạp hoặc hàm bị cấm
+    # Developer: viết hàm validate_email trong tập con cú pháp cho phép
     'developer': COMMON + (
         'You are Developer. Implement exactly one Python function validate_email(email) -> bool, following story and '
         'trusted contract. Allowed subset: imports re and os (or from os import getenv), module constants, def with one '
@@ -39,13 +33,8 @@ PROMPTS = {
 }
 
 
-# QUẢN LÝ DỮ LIỆU VÀ SỰ KIỆN CỦA PHIÊN (SESSION PIPELINE)
-
+# Khởi tạo trạng thái ban đầu của một phiên
 def initial(kind, description, initial_code=''):
-    """
-    Khởi tạo dictionary trạng thái ban đầu của một phiên làm việc (Session State).
-    Mỗi lần người dùng bấm nút trên Web, trạng thái này sẽ được chuyển đúng một bước.
-    """
     if kind != 'hub':
         raise ValueError('Bản demo này chỉ hỗ trợ Hub-and-Spoke.')
     if not isinstance(description, str) or not 20 <= len(description) <= 10000:
@@ -57,32 +46,28 @@ def initial(kind, description, initial_code=''):
         'kind': kind,
         'description': description,
         'initial_code': initial_code,
-        'phase': 'ready',       # Giai đoạn hiện tại (ready -> planned -> coded -> review/blocked -> accepted)
-        'status': 'ready',      # Trạng thái tổng quát của phiên
-        'story': None,          # User story do Planner sinh ra
-        'code': '',             # Mã nguồn Python hiện tại
-        'revision': 0,          # Số phiên bản mã (r1, r2, r3)
-        'qa': None,             # Kết quả kiểm thử từ QA Spoke
-        'governance': None,     # Kết quả kiểm tra bảo mật từ Governance Spoke
-        'repairs': 0,           # Số lần đã tự động sửa (tối đa 3 lần)
-        'events': [],           # Dòng thời gian các sự kiện giữa các Agent
-        'calls': [],            # Thống kê số lần và thời gian gọi LLM
-        'last_error': None,     # Lỗi gần nhất (nếu có)
+        'phase': 'ready',
+        'status': 'ready',
+        'story': None,
+        'code': '',
+        'revision': 0,
+        'qa': None,
+        'governance': None,
+        'repairs': 0,
+        'events': [],
+        'calls': [],
+        'last_error': None,
         'created_at': time.time(),
-        'version': 0            # Số hiệu phiên bản trạng thái để chống xung đột đồng thời (optimistic lock)
+        'version': 0
     }
 
 
 def event(s, actor, message):
-    """Ghi nhận một sự kiện vào lịch sử (ví dụ: 'Planner → Coordinator: Đã tạo story')"""
     s['events'].append({'actor': actor, 'message': message, 'time': time.time()})
 
 
+# Gọi agent qua LLM theo từng vai trò
 def call(s, model, role, payload):
-    """
-    Gọi Spoke Agent thông qua Model LLM.
-    Mỗi role dùng một instruction/prompt riêng nhưng dùng chung LLM Gateway.
-    """
     data, meta = model.call(role, PROMPTS[role], payload)
     s['calls'].append(meta)
     if not isinstance(data, dict):
@@ -90,19 +75,17 @@ def call(s, model, role, payload):
     return data
 
 
+# Trích xuất và xác thực mã Python trả về từ Developer
 def get_code(data):
-    """Trích xuất và kiểm tra tính hợp lệ của mã Python từ phản hồi JSON của Developer Spoke"""
     code = data.get('code')
     if not isinstance(code, str) or not 1 <= len(code) <= 12000:
         raise ModelError('Developer không trả mã Python hợp lệ trong trường code.')
     if code.strip().startswith('```'):
-        raise ModelError('Developer trả markdown thay vì mã nguồn thuần. Thử lại bước này.')
+        raise ModelError('Developer trả markdown thay vì mã nguồn. Thử lại bước này.')
     return code
 
 
+# Hàm chuyển tiếp gọi sang LangGraph workflow
 def advance(state, model, confirmed=False):
-    """
-    Hàm cầu nối: Chuyển yêu cầu từ API Server vào Engine đồ thị LangGraph (workflow.run_step).
-    """
     from workflow import run_step
     return run_step(state, model, confirmed)
