@@ -1,4 +1,4 @@
-"""Configuration is read locally; credentials never go to the browser."""
+﻿"""Configuration is read locally; credentials never go to the browser."""
 import os
 from pathlib import Path
 from importlib.metadata import version, PackageNotFoundError

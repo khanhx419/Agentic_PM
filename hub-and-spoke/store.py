@@ -1,4 +1,4 @@
-import sqlite3,json,secrets,time,hashlib,threading
+﻿import sqlite3,json,secrets,time,hashlib,threading
 from pathlib import Path
 from contextlib import contextmanager
 

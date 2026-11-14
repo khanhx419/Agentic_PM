@@ -1,4 +1,4 @@
-"""A deliberately small Python AST interpreter. Never eval/exec generated code."""
+﻿"""A deliberately small Python AST interpreter. Never eval/exec generated code."""
 import ast,json,sys,re,operator
 
 class Returned(Exception):

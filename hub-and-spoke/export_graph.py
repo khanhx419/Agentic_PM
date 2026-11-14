@@ -1,4 +1,4 @@
-"""Xuất cấu trúc graph thật ra Mermaid, không gọi Gemini hoặc dịch vụ vẽ ảnh."""
+﻿"""Xuất cấu trúc graph thật ra Mermaid, không gọi Gemini hoặc dịch vụ vẽ ảnh."""
 from pathlib import Path
 from workflow import build_graph
 

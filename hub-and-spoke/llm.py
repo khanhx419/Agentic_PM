@@ -1,4 +1,4 @@
-import json
+﻿import json
 import re
 import time
 import threading
@@ -26,9 +26,7 @@ def parse_object(text):
     return data
 
 
-# ==============================================================================
 # GATEWAY KẾT NỐI GOOGLE GEMINI API
-# ==============================================================================
 class Gemini:
     """
     Quản lý việc gửi request REST trực tiếp đến Google Generative Language API.

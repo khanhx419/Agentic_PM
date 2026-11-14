@@ -1,4 +1,4 @@
-"""Interactive local key setup; never paste keys into chat or a browser form."""
+﻿"""Interactive local key setup; never paste keys into chat or a browser form."""
 from pathlib import Path
 from getpass import getpass
 import re

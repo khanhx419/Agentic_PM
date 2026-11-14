@@ -1,9 +1,7 @@
-import time
+﻿import time
 from llm import ModelError
 
-# ==============================================================================
 # HỆ THỐNG PROMPT CHO CÁC SPOKE AGENTS
-# ==============================================================================
 
 # Quy định chung bắt buộc cho LLM:
 # - Không được bịa đặt kết quả kiểm thử (chỉ Python backend mới có quyền phán quyết PASS/FAIL)
@@ -14,10 +12,8 @@ COMMON = (
 )
 
 PROMPTS = {
-    # --------------------------------------------------------------------------
     # Prompt cho Planner Spoke:
     # Yêu cầu phân rã bài toán thành User Story nhỏ gọn cho hàm validate_email(email) -> bool
-    # --------------------------------------------------------------------------
     'planner': COMMON + (
         'You are Story Planner. Break the request into ONE narrowly scoped story for a Python function '
         'validate_email(email) -> bool. Contract: trim surrounding whitespace, accept a simple address with '
@@ -27,10 +23,8 @@ PROMPTS = {
         'State unsupported requests in scope, do not silently broaden the task.'
     ),
 
-    # --------------------------------------------------------------------------
     # Prompt cho Developer Spoke:
     # Hướng dẫn viết hàm Python đúng tiêu chuẩn, không dùng vòng lặp phức tạp hoặc hàm bị cấm
-    # --------------------------------------------------------------------------
     'developer': COMMON + (
         'You are Developer. Implement exactly one Python function validate_email(email) -> bool, following story and '
         'trusted contract. Allowed subset: imports re and os (or from os import getenv), module constants, def with one '
@@ -45,9 +39,7 @@ PROMPTS = {
 }
 
 
-# ==============================================================================
 # QUẢN LÝ DỮ LIỆU VÀ SỰ KIỆN CỦA PHIÊN (SESSION PIPELINE)
-# ==============================================================================
 
 def initial(kind, description, initial_code=''):
     """

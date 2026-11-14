@@ -1,4 +1,4 @@
-"""LangGraph orchestration adapted from the official Code Assistant pattern.
+﻿"""LangGraph orchestration adapted from the official Code Assistant pattern.
 
 See SOURCES-AND-CHANGES.md and upstream-reference/ for source, commit and MIT license.
 Unlike the upstream notebook, generated code is never executed with exec().
@@ -13,9 +13,7 @@ from llm import ModelError
 from pipeline import call, event, get_code
 
 
-# ==============================================================================
 # 1. KHAI BÁO CẤU TRÚC TRẠNG THÁI (STATE) CỦA ĐỒ THỊ LANGGRAPH
-# ==============================================================================
 class RunState(TypedDict):
     """
     RunState: Định nghĩa dữ liệu di chuyển xuyên suốt giữa các Node trong đồ thị.
@@ -31,9 +29,7 @@ class RunState(TypedDict):
     visited: list[str]
 
 
-# ==============================================================================
 # 2. XÂY DỰNG ĐỒ THỊ ĐIỀU PHỐI (BUILD GRAPH)
-# ==============================================================================
 def build_graph(model):
     """
     Xây dựng đồ thị LangGraph (Hub-and-Spoke Architecture).
@@ -49,10 +45,8 @@ def build_graph(model):
             return {**updates, "visited": run["visited"] + [name]}
         return execute
 
-    # --------------------------------------------------------------------------
     # NODE 1: COORDINATOR (HUB TRUNG TÂM)
     # Nhiệm vụ: Đọc trạng thái hiện tại (phase) và quyết định Spoke tiếp theo.
-    # --------------------------------------------------------------------------
     def coordinator(run):
         s = run["session"]
         if s.get("kind") != "hub":
@@ -82,10 +76,8 @@ def build_graph(model):
 
         return {"route": target}
 
-    # --------------------------------------------------------------------------
     # NODE 2: PLANNER SPOKE (LẬP KẾ HOẠCH)
     # Nhiệm vụ: Gọi Gemini để phân tích yêu cầu thành User Story và tiêu chí nghiệm thu.
-    # --------------------------------------------------------------------------
     def planner(run):
         s = run["session"]
         data = call(s, model, "planner", {"request": s["description"]})
@@ -96,10 +88,8 @@ def build_graph(model):
         event(s, "Planner → Coordinator", "Đã tạo story và tiêu chí chấp nhận bằng Gemini.")
         return {"session": s}
 
-    # --------------------------------------------------------------------------
     # NODE 3: DEVELOPER SPOKE (LẬP TRÌNH VIÊN)
     # Nhiệm vụ: Viết code Python đáp ứng story của Planner (hoặc nhận code có sẵn).
-    # --------------------------------------------------------------------------
     def developer(run):
         s = run["session"]
         if s["initial_code"].strip():
@@ -113,30 +103,24 @@ def build_graph(model):
         s.update(revision=1, phase="coded")
         return {"session": s}
 
-    # --------------------------------------------------------------------------
     # NODE 4: QA SPOKE (KIỂM THỬ CHẤT LƯỢNG)
     # Nhiệm vụ: Kiểm thử cú pháp và chức năng thông qua thông dịch AST bị cô lập.
-    # --------------------------------------------------------------------------
     def qa_node(run):
         s = run["session"]
         s["qa"] = qa(s["code"])
         event(s, "QA → Coordinator", "PASS" if s["qa"]["pass"] else "FAIL: chức năng chưa đạt hoặc vượt phạm vi kiểm thử.")
         return {"session": s}
 
-    # --------------------------------------------------------------------------
     # NODE 5: GOVERNANCE SPOKE (QUẢN TRỊ AN TOÀN & BẢO MẬT)
     # Nhiệm vụ: Quét AST phát hiện lộ mật khẩu, hardcoded API key, hoặc hàm nguy hiểm (eval, exec).
-    # --------------------------------------------------------------------------
     def governance(run):
         s = run["session"]
         s["governance"] = scan(s["code"])
         event(s, "Governance → Coordinator", "PASS: đạt quy tắc AST hiện tại." if s["governance"]["pass"] else "FAIL: mã vi phạm quy tắc AST.")
         return {"session": s}
 
-    # --------------------------------------------------------------------------
     # CONDITIONAL EDGE: CỔNG ĐÁNH GIÁ (SECURITY & QUALITY GATE ROUTER)
     # Đưa ra quyết định cứng bằng code Python; LLM không có quyền tự tuyên bố PASS.
-    # --------------------------------------------------------------------------
     def gate_route(run):
         s = run["session"]
         # Phải đồng thời vượt qua cả bài test QA lẫn quy tắc bảo mật Governance
@@ -162,10 +146,8 @@ def build_graph(model):
         s["phase"] = s["status"] = "review" if passed else "blocked"
         return {"session": s}
 
-    # --------------------------------------------------------------------------
     # NODE 6: REPAIR SPOKE (TỰ ĐỘNG SỬA MÃ NGUỒN)
     # Nhiệm vụ: Đọc lỗi từ QA và Governance, che thông tin nhạy cảm và yêu cầu LLM sửa lại.
-    # --------------------------------------------------------------------------
     def repair(run):
         s = run["session"]
         feedback = {"qa": s["qa"], "governance": s["governance"]}
@@ -179,10 +161,8 @@ def build_graph(model):
         event(s, "Developer → Coordinator", f'Gemini đã sửa mã r{s["revision"]}; phải kiểm tra lại.')
         return {"session": s}
 
-    # --------------------------------------------------------------------------
     # NODE 7: ACCEPT (CHẤP NHẬN KẾT QUẢ)
     # Người dùng nhấn xác nhận nghiệm thu sản phẩm.
-    # --------------------------------------------------------------------------
     def accept(run):
         s = run["session"]
         if not ((s.get("qa") or {}).get("pass") and (s.get("governance") or {}).get("pass")):
@@ -191,18 +171,14 @@ def build_graph(model):
         event(s, "Người dùng → Coordinator", "Chấp nhận kết quả đã qua kiểm tra. Không merge hay triển khai tự động.")
         return {"session": s}
 
-    # --------------------------------------------------------------------------
     # NODE 8: STOP (DỪNG LUỒNG KHI QUÁ GIỚI HẠN SỬA)
-    # --------------------------------------------------------------------------
     def stop(run):
         s = run["session"]
         s["status"] = "exhausted"
         event(s, "Coordinator", "Dừng sau 3 lần sửa; mã chưa được chấp nhận.")
         return {"session": s}
 
-    # --------------------------------------------------------------------------
     # NODE 9: FINISH (ĐIỂM KẾT THÚC VÒNG CHẠY)
-    # --------------------------------------------------------------------------
     def finish(run):
         s = run["session"]
         s["last_error"] = None
@@ -211,9 +187,7 @@ def build_graph(model):
         s.setdefault("graph_steps", []).append({"version": s["version"], "nodes": run["visited"] + ["finish"]})
         return {"session": s}
 
-    # ==========================================================================
     # 3. KẾT NỐI CÁC ĐỈNH VÀ CẠNH VÀO ĐỒ THỊ LANGGRAPH (STATEGRAPH)
-    # ==========================================================================
     graph = StateGraph(RunState)
 
     # Đăng ký danh sách các Node
@@ -248,9 +222,7 @@ def build_graph(model):
     return graph.compile()
 
 
-# ==============================================================================
 # 4. HÀM THỰC THI CHÍNH TỪ SERVER (APP.PY GỌI VÀO ĐÂY)
-# ==============================================================================
 def run_step(state, model, confirmed=False):
     """
     Thực hiện 1 bước chuyển trạng thái (state transition).

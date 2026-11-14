@@ -1,4 +1,4 @@
-"""Run with the project venv; LangGraph orchestration, loopback HTTP, no mock model."""
+﻿"""Run with the project venv; LangGraph orchestration, loopback HTTP, no mock model."""
 import argparse
 import json
 import secrets
@@ -13,11 +13,9 @@ from workflow import run_step as advance
 from governance import scan, qa
 from store import Store
 
-# ==============================================================================
 # KHỞI TẠO HTTP SERVER CHO DEMO HUB-AND-SPOKE
 # Web UI chỉ là nơi gửi yêu cầu và nhận hiển thị; toàn bộ quyết định rẽ nhánh,
 # điều phối LangGraph và kiểm tra PASS/FAIL đều được thực thi chặt chẽ ở Backend.
-# ==============================================================================
 def make_server(port=8767, model=None, store=None):
     # Tạo mã token ngẫu nhiên bảo vệ phiên làm việc của ứng dụng
     app_token = secrets.token_urlsafe(32)
@@ -60,9 +58,7 @@ def make_server(port=8767, model=None, store=None):
         def valid_host(self):
             return self.headers.get('Host') in allowed_hosts
 
-        # ----------------------------------------------------------------------
         # XỬ LÝ CÁC YÊU CẦU GET (Tải trang HTML/JS/CSS và lấy thông tin cấu hình)
-        # ----------------------------------------------------------------------
         def do_GET(self):
             if not self.valid_host():
                 return self.send(403, {'error': 'Chỉ phục vụ localhost.'})
@@ -91,9 +87,7 @@ def make_server(port=8767, model=None, store=None):
             mime = 'text/javascript; charset=utf-8' if file.suffix == '.js' else 'text/css; charset=utf-8' if file.suffix == '.css' else 'text/html; charset=utf-8'
             self.send(200, file.read_bytes(), mime)
 
-        # ----------------------------------------------------------------------
         # XỬ LÝ CÁC YÊU CẦU POST (Tạo phiên, chạy đồ thị LangGraph, quét kiểm tra)
-        # ----------------------------------------------------------------------
         def do_POST(self):
             if not self.valid_host() or self.headers.get('Origin') not in (*allowed_origins, None):
                 return self.send(403, {'error': 'Nguồn yêu cầu không hợp lệ.'})
@@ -166,9 +160,7 @@ def make_server(port=8767, model=None, store=None):
     return server
 
 
-# ==============================================================================
 # ĐIỂM BẮT ĐẦU CHẠY TỪ DÒNG LỆNH (CLI ENTRYPOINT)
-# ==============================================================================
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--port', type=int, default=8767)

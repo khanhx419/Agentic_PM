@@ -1,4 +1,4 @@
-"""Explicit live verification. This script makes real Gemini calls only with --live."""
+﻿"""Explicit live verification. This script makes real Gemini calls only with --live."""
 import argparse
 import json
 import time

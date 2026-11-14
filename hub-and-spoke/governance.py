@@ -1,4 +1,4 @@
-"""AST rules; no generated Python is executed on the host."""
+﻿"""AST rules; no generated Python is executed on the host."""
 import ast
 import re
 import json
@@ -6,9 +6,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-# ==============================================================================
 # QUY TẮC QUẢN TRỊ AN TOÀN (GOVERNANCE & POLICY RULES)
-# ==============================================================================
 
 # Biểu thức chính quy phát hiện các từ khóa liên quan đến thông tin bảo mật/bí mật
 SENSITIVE = re.compile(r'secret|token|api_?key|password|passwd|credential', re.I)
@@ -39,9 +37,7 @@ def literal(node, constants, depth=0):
     return None
 
 
-# ==============================================================================
 # HÀM QUÉT MÃ NGUỒN BẰNG AST (SCAN)
-# ==============================================================================
 def scan(code):
     """
     Duyệt cây cú pháp trừu tượng (AST) để áp dụng các chính sách an toàn.
@@ -131,9 +127,7 @@ def scan(code):
     return {'pass': not findings, 'findings': findings[:60]}
 
 
-# ==============================================================================
 # HÀM CHE GIẤU BÍ MẬT TRƯỚC KHI GỬI LLM SỬA MÃ (REDACT CODE)
-# ==============================================================================
 def redact_code(code):
     """
     Khi phát hiện code có chứa token hoặc password bị lộ, hàm này sẽ thay thế chuỗi bí mật
@@ -148,9 +142,7 @@ def redact_code(code):
     return '\n'.join(lines)
 
 
-# ==============================================================================
 # HÀM KIỂM THỬ CHẤT LƯỢNG AN TOÀN (RESTRICTED QA WORKER RUNNER)
-# ==============================================================================
 def qa(code):
     """
     Chạy bộ kiểm thử trong tiến trình riêng (qa_worker.py) bị cô lập với timeout 4s.
