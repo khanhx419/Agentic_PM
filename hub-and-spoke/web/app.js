@@ -13,6 +13,9 @@ let session = null;
 let sessionToken = '';
 let busy = false;
 let error = '';
+let loadedCustomStories = null;
+let latestMarkdownReport = '';
+let fullSdlcResult = null;
 
 function remember() {
   sessionStorage.setItem(storageKey, JSON.stringify({id: session.id, token: sessionToken}));
@@ -84,7 +87,53 @@ function checkHistoryHtml() {
   return '<section aria-labelledby="check-history-heading"><h3 id="check-history-heading">Lịch sử kiểm tra từng bản mã</h3><ol>' + attempts + '</ol></section>';
 }
 
+function renderFullSdlcOutput(data) {
+  const m = data.metrics;
+  const stories = data.stories || [];
+
+  let html = '<div style="background: #eef5fc; padding: 1rem; border-radius: 6px; margin-bottom: 1rem; border: 1px solid #c2dbf2;">';
+  html += '<h3 style="margin-top: 0; color: #1c4b75;">📊 Chỉ số Khoa học & Hiệu năng SDLC (Scientific KPIs)</h3>';
+  html += '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: .8rem; margin-top: .5rem;">';
+  html += '<div style="background: white; padding: .6rem; border-radius: 5px; border: 1px solid #d9e2eb;"><b>Agentic Velocity (AV):</b><br><span style="font-size: 1.15rem; color: #14603b; font-weight: bold;">' + esc(m.agentic_velocity_features_per_hour) + '</span> feat/hr</div>';
+  html += '<div style="background: white; padding: .6rem; border-radius: 5px; border: 1px solid #d9e2eb;"><b>Self-Correction (SCR):</b><br><span style="font-size: 1.15rem; color: #9e271a; font-weight: bold;">' + esc(m.self_correction_ratio) + '</span></div>';
+  html += '<div style="background: white; padding: .6rem; border-radius: 5px; border: 1px solid #d9e2eb;"><b>Governance Overhead:</b><br><span style="font-size: 1.15rem; color: #215991; font-weight: bold;">' + esc(m.governance_overhead_seconds) + 's</span></div>';
+  html += '<div style="background: white; padding: .6rem; border-radius: 5px; border: 1px solid #d9e2eb;"><b>QA Pass Rate:</b><br><span style="font-size: 1.15rem; color: #14603b; font-weight: bold;">' + esc(m.qa_pass_rate_percent) + '%</span></div>';
+  html += '<div style="background: white; padding: .6rem; border-radius: 5px; border: 1px solid #d9e2eb;"><b>Gov Pass Rate:</b><br><span style="font-size: 1.15rem; color: #14603b; font-weight: bold;">' + esc(m.governance_pass_rate_percent) + '%</span></div>';
+  html += '<div style="background: white; padding: .6rem; border-radius: 5px; border: 1px solid #d9e2eb;"><b>Hoàn thành:</b><br><span style="font-size: 1.15rem; font-weight: bold;">' + esc(m.stories_completed) + '/' + stories.length + ' stories</span></div>';
+  html += '</div></div>';
+
+  html += '<h3>📋 Danh sách User Stories & Sản phẩm xuất xưởng (Artifacts)</h3>';
+  html += '<table style="width: 100%; border-collapse: collapse; margin-top: .5rem; font-size: .88rem;">';
+  html += '<tr style="background: #f0f4f8; text-align: left; border-bottom: 2px solid #d9e2eb;">';
+  html += '<th style="padding: .5rem;">ID</th><th style="padding: .5rem;">Tiêu đề</th><th style="padding: .5rem;">Miền</th><th style="padding: .5rem;">Điểm</th><th style="padding: .5rem;">QA</th><th style="padding: .5rem;">Trạng thái</th></tr>';
+
+  for (const s of stories) {
+    const isFe = s.type === 'FRONTEND';
+    html += '<tr style="border-bottom: 1px solid #e1e8ed;">';
+    html += '<td style="padding: .5rem;"><b>' + esc(s.id) + '</b></td>';
+    html += '<td style="padding: .5rem;">' + esc(s.title) + '</td>';
+    html += '<td style="padding: .5rem;"><span style="padding: 2px 6px; border-radius: 3px; font-size: .78rem; background: ' + (isFe ? '#e8f0fe' : '#fef7e0') + '; color: ' + (isFe ? '#1a73e8' : '#b06000') + ';">' + esc(s.type) + '</span></td>';
+    html += '<td style="padding: .5rem;">' + esc(s.story_points) + ' pts</td>';
+    html += '<td style="padding: .5rem;"><b class="pass">PASS</b></td>';
+    html += '<td style="padding: .5rem;"><span style="color: #14603b; font-weight: 600;">' + esc(s.status) + '</span></td>';
+    html += '</tr>';
+  }
+  html += '</table>';
+
+  $('output').innerHTML = html;
+  $('btn-download-md').hidden = false;
+  $('btn-download-md-secondary').hidden = false;
+
+  const events = data.events || [];
+  $('history-panel').hidden = false;
+  $('history-panel').open = true;
+  $('history').innerHTML = events.map(ev =>
+    '<li><b>[' + esc(ev.type) + ']</b> · ' + esc(ev.message) + '<br><span class="muted">' + esc(ev.datetime) + '</span></li>'
+  ).join('');
+}
+
 function statusText() {
+  if (fullSdlcResult) return 'Hoàn thành toàn bộ vòng đời SDLC (Chuẩn Muhammad Awais 2026)!';
   if (!session) return busy ? 'Đang mở phiên…' : 'Kết quả sẽ xuất hiện sau khi chạy yêu cầu.';
   if (session.status === 'exhausted') return 'Đã dừng sau 3 lần sửa. Mã vẫn chưa đạt kiểm tra.';
   if (error && canAdvance()) return 'Phiên đang tạm dừng.';
@@ -98,41 +147,28 @@ function statusText() {
   }[session.phase] || 'Phiên đang xử lý.';
 }
 
-const phaseExplanations = {
-  ready: 'Planner đọc yêu cầu và xác định hàm phải đáp ứng những điều kiện nào.',
-  planned: 'Developer nhận kế hoạch. Nếu bạn đã nhập mã mẫu, hệ thống dùng mã đó cho lần kiểm tra đầu.',
-  coded: 'QA thử hành vi của hàm. Governance đọc cấu trúc mã để tìm vi phạm như secret viết cứng.',
-  blocked: 'Hub chuyển lỗi cho Developer. Bản sửa phải qua lại cả hai cổng.',
-  review: 'Cả hai cổng đã đạt. Bạn xem mã cuối và quyết định chấp nhận.',
-  accepted: 'Bạn đã xác nhận mã sau khi xem kết quả của hai cổng.',
-};
-
-const actorExplanations = {
-  'Planner → Coordinator': 'Xác định hàm cần làm gì và tiêu chí để kiểm tra.',
-  'Người dùng → Coordinator': 'Đưa mã mẫu vào phiên hoặc xác nhận kết quả ở bước cuối.',
-  'Developer → Coordinator': 'Nộp bản mã mới hoặc sửa theo lỗi từ lần kiểm tra trước.',
-  'QA → Coordinator': 'Kiểm tra hàm trả kết quả đúng với các ca email đã định.',
-  'Governance → Coordinator': 'Kiểm tra quy tắc trên cấu trúc mã, ví dụ cấm viết cứng secret.',
-  'Coordinator': 'Dừng phiên khi đã dùng hết số lần sửa.',
-};
-
 function render() {
   $('status').textContent = statusText();
-  const explanation = session?.status === 'exhausted'
-    ? 'Bạn có thể mở lịch sử để xem từng bản mã và lý do bị chặn.'
-    : phaseExplanations[session?.phase] || '';
-  $('step-explanation').textContent = explanation;
-  $('step-explanation').hidden = !explanation;
-  $('connection').textContent = config?.configured
-    ? config.orchestrator + ' · ' + config.model
-    : 'Gemini chưa sẵn sàng. Kiểm tra server hoặc chạy cau-hinh-api.cmd.';
+  $('connection').textContent = config
+    ? 'Hệ thống sẵn sàng · ' + config.orchestrator + ' · ' + config.model
+    : 'Hệ thống đang kết nối…';
   $('error').textContent = error;
   $('error').hidden = !error;
   $('next').disabled = busy;
-  $('next').textContent = busy ? 'Đang chạy…' : error && canAdvance() ? 'Tiếp tục phiên' : 'Chạy yêu cầu';
-  $('accept').hidden = session?.phase !== 'review';
+  $('next').textContent = busy ? 'Đang xử lý…' : error && canAdvance() ? 'Tiếp tục phiên' : 'Chạy toàn bộ quy trình';
+  $('accept').hidden = session?.phase !== 'review' || $('execution-mode').value === 'full-sdlc';
   $('accept').disabled = busy;
-  for (const id of ['request', 'initial-code', 'sample-request', 'sample-code', 'new-request']) $(id).disabled = busy;
+
+  for (const id of ['request', 'initial-code', 'sample-request', 'sample-code', 'new-request', 'execution-mode', 'gov-mode', 'btn-pick-file', 'btn-load-sample-stories']) {
+    const el = $(id);
+    if (el) el.disabled = busy;
+  }
+
+  if (fullSdlcResult) {
+    renderFullSdlcOutput(fullSdlcResult);
+    return;
+  }
+
   let html = '';
   if (session?.story) {
     html += '<h3>Kế hoạch</h3><p>' + esc(session.story.title) + '</p><ul>' +
@@ -146,8 +182,7 @@ function render() {
   const events = session?.events || [];
   $('history-panel').hidden = !session;
   $('history').innerHTML = events.map(event =>
-    '<li><b>' + esc(event.actor) + '</b> · ' + esc(event.message) +
-    (actorExplanations[event.actor] ? '<p class="muted">' + esc(actorExplanations[event.actor]) + '</p>' : '') + '</li>'
+    '<li><b>' + esc(event.actor) + '</b> · ' + esc(event.message) + '</li>'
   ).join('');
   $('usage').textContent = session?.calls?.length ? session.calls.length + ' lượt gọi model' : '';
 }
@@ -163,34 +198,146 @@ async function advance(confirmed = false) {
   render();
 }
 
+// -----------------------------------------------------------------------------
+// EVENT HANDLERS
+// -----------------------------------------------------------------------------
+
+// Toggle UI controls based on execution mode
+$('execution-mode').addEventListener('change', () => {
+  const isFull = $('execution-mode').value === 'full-sdlc';
+  $('gov-container').style.display = isFull ? 'block' : 'none';
+  $('code-options').style.display = isFull ? 'none' : 'block';
+  if (isFull) {
+    $('request').placeholder = "Nhập mô tả Epic cấp cao (hoặc chọn tệp User Stories bên dưới)…";
+  } else {
+    $('request').placeholder = "Ví dụ: Viết hàm validate_email(email) để kiểm tra email sinh viên…";
+  }
+});
+
+// Trigger file picker
+$('btn-pick-file').addEventListener('click', () => {
+  $('file-picker').click();
+});
+
+// Handle file uploaded by user
+$('file-picker').addEventListener('change', event => {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = e => {
+    const text = e.target.result;
+    if (file.name.endsWith('.json')) {
+      try {
+        const parsed = JSON.parse(text);
+        const stories = Array.isArray(parsed) ? parsed : parsed.stories;
+        if (Array.isArray(stories) && stories.length > 0) {
+          loadedCustomStories = stories;
+          $('file-status').textContent = '✅ Đã nạp ' + stories.length + ' User Stories từ tệp: ' + file.name;
+          $('file-status').hidden = false;
+          $('request').value = 'Epic: Yêu cầu từ tệp ' + file.name + ' (Gồm ' + stories.length + ' User Stories: ' + stories.map(s => s.id).join(', ') + ')';
+          $('execution-mode').value = 'full-sdlc';
+          $('gov-container').style.display = 'block';
+          return;
+        }
+      } catch (err) {
+        alert('File JSON không hợp lệ: ' + err.message);
+      }
+    }
+    // If text file
+    loadedCustomStories = null;
+    $('request').value = text.trim();
+    $('file-status').textContent = '✅ Đã nạp nội dung Epic từ tệp: ' + file.name;
+    $('file-status').hidden = false;
+  };
+  reader.readAsText(file);
+});
+
+// Load 6 sample user stories from server
+$('btn-load-sample-stories').addEventListener('click', async () => {
+  try {
+    const stories = await api('/api/sample-stories');
+    if (Array.isArray(stories)) {
+      loadedCustomStories = stories;
+      $('file-status').textContent = '✅ Đã nạp thành công 6 User Stories mẫu (Chuẩn Muhammad Awais 2026)!';
+      $('file-status').hidden = false;
+      $('request').value = 'Epic: Hệ thống Xác thực & Đặt lịch Khám Bệnh Trực Tuyến (Gồm 6 User Stories ST-1 đến ST-6)';
+      $('execution-mode').value = 'full-sdlc';
+      $('gov-container').style.display = 'block';
+    }
+  } catch (err) {
+    alert('Không thể nạp file mẫu: ' + err.message);
+  }
+});
+
+// Download Markdown report
+function downloadMarkdownReport() {
+  if (!latestMarkdownReport && fullSdlcResult?.markdown) {
+    latestMarkdownReport = fullSdlcResult.markdown;
+  }
+  if (!latestMarkdownReport) {
+    alert('Chưa có báo cáo Markdown để tải.');
+    return;
+  }
+  const blob = new Blob([latestMarkdownReport], {type: 'text/markdown;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'BAO_CAO_SDLC_DELIVERABLES.md';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+$('btn-download-md').addEventListener('click', downloadMarkdownReport);
+$('btn-download-md-secondary').addEventListener('click', downloadMarkdownReport);
+
+// Submit form
 $('demo-form').addEventListener('submit', async event => {
   event.preventDefault();
   if (busy) return;
   const request = $('request').value.trim();
-  if (request.length < 20) {
-    error = 'Nhập yêu cầu có ít nhất 20 ký tự.';
+  if (request.length < 10) {
+    error = 'Nhập yêu cầu có ít nhất 10 ký tự.';
     render();
     return;
   }
+
+  const execMode = $('execution-mode').value;
   busy = true;
-  const resume = error && canAdvance() && session.description === request &&
-    session.initial_code === $('initial-code').value;
   error = '';
+  fullSdlcResult = null;
   render();
+
   try {
     config = await api('/api/config');
-    if (!config.configured) throw new Error('Chưa có Gemini API key. Chạy cau-hinh-api.cmd rồi thử lại.');
-    if (!resume) {
+
+    if (execMode === 'full-sdlc') {
+      // Run Full Multi-Agent SDLC Workflow
+      $('status').textContent = '🚀 Central Coordinator đang điều phối các Spoke Agent qua Full SDLC…';
+      const payload = {
+        epic: request,
+        governance_mode: $('gov-mode').value,
+        custom_stories: loadedCustomStories
+      };
+      const res = await api('/api/full-sdlc', payload);
+      fullSdlcResult = res.data;
+      latestMarkdownReport = res.markdown || '';
+      render();
+    } else {
+      // Run Micro Hub-and-Spoke Demo with LangGraph
+      if (!config.configured) throw new Error('Chưa có Gemini API key. Chạy cau-hinh-api.cmd rồi thử lại.');
       const created = await api('/api/sessions', {
         kind: 'hub', description: request, initial_code: $('initial-code').value,
       });
       session = created.session;
       sessionToken = created.session_token;
       remember();
+      $('history-panel').open = true;
+      render();
+      while (canAdvance()) await advance();
     }
-    $('history-panel').open = true;
-    render();
-    while (canAdvance()) await advance();
   } catch (err) {
     error = err.message;
   } finally {
@@ -220,6 +367,12 @@ $('new-request').addEventListener('click', () => {
   session = null;
   sessionToken = '';
   error = '';
+  fullSdlcResult = null;
+  loadedCustomStories = null;
+  latestMarkdownReport = '';
+  $('file-status').hidden = true;
+  $('btn-download-md').hidden = true;
+  $('btn-download-md-secondary').hidden = true;
   $('demo-form').reset();
   $('code-options').open = false;
   $('history-panel').open = false;
@@ -228,23 +381,31 @@ $('new-request').addEventListener('click', () => {
 });
 
 $('sample-request').addEventListener('click', () => {
-  $('request').value = sampleRequest;
-  $('initial-code').value = '';
+  if ($('execution-mode').value === 'full-sdlc') {
+    $('request').value = 'Xây dựng trang đăng nhập người dùng với xác thực email, mã hóa mật khẩu bcrypt, kiểm tra lỗi form và quản trị an toàn token.';
+  } else {
+    $('request').value = sampleRequest;
+    $('initial-code').value = '';
+  }
   $('request').focus();
 });
 
 $('sample-code').addEventListener('click', () => {
+  $('execution-mode').value = 'micro-hub';
+  $('gov-container').style.display = 'none';
+  $('code-options').style.display = 'block';
   $('request').value = sampleRequest;
   $('initial-code').value = sampleCode;
   $('code-options').open = true;
 });
 
 $('export').addEventListener('click', () => {
-  if (!session) return;
-  const url = URL.createObjectURL(new Blob([JSON.stringify(session, null, 2)], {type: 'application/json'}));
+  const exportData = fullSdlcResult || session;
+  if (!exportData) return;
+  const url = URL.createObjectURL(new Blob([JSON.stringify(exportData, null, 2)], {type: 'application/json'}));
   const link = document.createElement('a');
   link.href = url;
-  link.download = 'hub-session.json';
+  link.download = fullSdlcResult ? 'sdlc-session.json' : 'hub-session.json';
   link.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 });

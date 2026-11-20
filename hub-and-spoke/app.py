@@ -58,6 +58,13 @@ def make_server(port=8767, model=None, store=None):
             if parsed.path == '/api/config':
                 return self.send(200, {**public_settings(), 'app_token': app_token, 'port': port})
 
+            # Lấy danh sách 6 User Stories mẫu (Muhammad Awais 2026)
+            if parsed.path == '/api/sample-stories':
+                sample_file = (ROOT.parent.parent.parent / 'smart_pms_ai' / 'input_user_stories_mau.json').resolve()
+                if sample_file.is_file():
+                    return self.send(200, json.loads(sample_file.read_text(encoding='utf-8')))
+                return self.send(404, {'error': 'Không tìm thấy file mẫu.'})
+
             # Lấy dữ liệu phiên làm việc
             if parsed.path in ('/api/session', '/api/export'):
                 try:
@@ -105,6 +112,79 @@ def make_server(port=8767, model=None, store=None):
                     tests = qa(code) if isinstance(code, str) and 0 < len(code) <= 12000 else {'pass': False, 'cases': [], 'error': 'Mã không hợp lệ.'}
                     return self.send(200, {'governance': gate, 'qa': tests, 'accepted': gate['pass'] and tests['pass'], 'model_calls': 0})
 
+                # Chạy toàn bộ vòng đời SDLC (Chuẩn Muhammad Awais 2026)
+                if self.path == '/api/full-sdlc':
+                    epic = data.get('epic') or "Create a user login page with email validation"
+                    mode = (data.get('governance_mode') or "STRICT").upper()
+                    custom_stories = data.get('custom_stories')
+
+                    import sys, subprocess, os
+                    from pathlib import Path
+
+                    smart_dir = (ROOT.parent.parent.parent / 'smart_pms_ai' / 'backend').resolve()
+                    main_py = str(smart_dir / 'main.py')
+                    py_bin = sys.executable
+
+                    cmd = [py_bin, main_py, '--mode', 'single', '--governance', mode, '--epic', epic]
+
+                    temp_stories_file = None
+                    if custom_stories:
+                        temp_stories_file = str(smart_dir / 'output' / '_temp_custom_stories.json')
+                        with open(temp_stories_file, 'w', encoding='utf-8') as f:
+                            json.dump(custom_stories, f, ensure_ascii=False)
+                        cmd.extend(['--stories-file', temp_stories_file])
+
+                    p = subprocess.run(cmd, cwd=str(smart_dir), capture_output=True, text=True, encoding='utf-8')
+                    if p.returncode != 0:
+                        return self.send(500, {'error': f'Lỗi khi chạy SDLC: {p.stderr or p.stdout}'})
+
+                    output_dir = smart_dir / 'output'
+                    aggregates_file = output_dir / 'aggregates.json'
+                    events_file = output_dir / 'events.json'
+                    report_file = output_dir / 'BAO_CAO_SDLC_DELIVERABLES.md'
+
+                    metrics = {}
+                    if aggregates_file.is_file():
+                        metrics = json.loads(aggregates_file.read_text(encoding='utf-8')).get('summary', {})
+
+                    events = []
+                    if events_file.is_file():
+                        events = json.loads(events_file.read_text(encoding='utf-8'))
+
+                    stories_data = []
+                    stories_source = custom_stories
+                    if not stories_source:
+                        sample_json = smart_dir.parent / 'input_user_stories_mau.json'
+                        if sample_json.is_file():
+                            stories_source = json.loads(sample_json.read_text(encoding='utf-8'))
+
+                    for s in (stories_source or []):
+                        stories_data.append({
+                            'id': s.get('id', 'ST-1'),
+                            'title': s.get('title', ''),
+                            'type': s.get('type', 'BACKEND'),
+                            'story_points': s.get('story_points', 3),
+                            'status': 'COMPLETED'
+                        })
+
+                    markdown_content = ""
+                    if report_file.is_file():
+                        markdown_content = report_file.read_text(encoding='utf-8')
+
+                    return self.send(200, {
+                        'status': 'success',
+                        'data': {
+                            'epic': epic,
+                            'governance_mode': mode,
+                            'metrics': metrics,
+                            'stories': stories_data,
+                            'events': events,
+                            'output_directory': str(output_dir)
+                        },
+                        'markdown': markdown_content,
+                        'report_path': str(report_file)
+                    })
+
                 # Chuyển bước tiếp theo trong LangGraph
                 if self.path == '/api/next':
                     sid = data.get('id')
@@ -130,8 +210,10 @@ def make_server(port=8767, model=None, store=None):
 
             except (ValueError, TypeError, KeyError, RecursionError) as error:
                 return self.send(400, {'error': str(error)[:250] or 'Dữ liệu không hợp lệ.'})
-            except Exception:
-                return self.send(500, {'error': 'Lỗi xử lý nội bộ; phiên không được tự coi là thành công.'})
+            except Exception as e:
+                import traceback
+                traceback.print_exc()
+                return self.send(500, {'error': f'Lỗi xử lý nội bộ: {str(e)}'})
 
     server = ThreadingHTTPServer(('127.0.0.1', port), Handler)
     port = server.server_address[1]

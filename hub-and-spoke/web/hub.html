@@ -3,45 +3,80 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Demo Hub-and-Spoke</title>
+  <title>Demo Agentic SDLC & Hub-and-Spoke Governance</title>
   <link rel="stylesheet" href="/assets/style.css">
   <script defer src="/assets/app.js"></script>
 </head>
 <body>
 <main>
-  <h1>Demo Hub-and-Spoke</h1>
+  <h1>Agentic SDLC & Hub-and-Spoke Governance Laboratory</h1>
+  <p class="muted" style="margin-top:-.6rem; margin-bottom: 1.25rem;">
+    Mô hình Điều phối Đa Tác tử & Cổng Quản trị An toàn trong Vòng đời SDLC (Muhammad Awais, 2026)
+  </p>
   <div class="workspace">
     <form id="demo-form" class="panel">
-      <h2>Đầu vào</h2>
-      <label for="request">Mô tả yêu cầu</label>
-      <textarea id="request" rows="7" required minlength="20" maxlength="10000" placeholder="Ví dụ: Viết hàm validate_email(email) để kiểm tra email sinh viên…"></textarea>
-      <p class="muted">Demo xử lý yêu cầu viết hoặc sửa một hàm Python <code>validate_email(email)</code>.</p>
+      <h2>Đầu vào Yêu cầu (Requirements / Backlog)</h2>
+
+      <label for="execution-mode">Chế độ thực thi</label>
+      <select id="execution-mode" style="width: 100%; padding: .45rem .6rem; border-radius: 5px; border: 1px solid #899cad; margin-bottom: .6rem; font: inherit;">
+        <option value="full-sdlc" selected>🚀 Full SDLC Multi-Agent (Chuẩn Muhammad Awais: 6 Stories, FE/BE, QA, Governance, KPIs)</option>
+        <option value="micro-hub">⚡ Micro Hub-and-Spoke (Demo hàm validate_email với LangGraph)</option>
+      </select>
+
+      <div id="gov-container">
+        <label for="gov-mode">Mức độ Quản trị an toàn (Governance Mode)</label>
+        <select id="gov-mode" style="width: 100%; padding: .45rem .6rem; border-radius: 5px; border: 1px solid #899cad; margin-bottom: .6rem; font: inherit;">
+          <option value="STRICT" selected>STRICT (Bảo mật tối đa, quét SAST, bắt Secret, 100% Pass Rate)</option>
+          <option value="BASIC">BASIC (Kiểm tra Unit Test cơ bản, tốc độ cao)</option>
+          <option value="OFF">OFF (Tự do tối đa, không kiểm soát)</option>
+        </select>
+      </div>
+
+      <label for="request">Mô tả Yêu cầu / Epic</label>
+      <textarea id="request" rows="5" required minlength="10" maxlength="10000" placeholder="Ví dụ: Xây dựng trang đăng nhập có xác thực email, mã hóa mật khẩu và kiểm tra bảo mật…"></textarea>
+      
       <div class="actions">
-        <button type="button" class="link" id="sample-request">Điền yêu cầu mẫu</button>
+        <!-- Nút chọn file JSON hoặc TXT -->
+        <input type="file" id="file-picker" accept=".json,.txt" style="display: none;" />
+        <button type="button" class="link" id="btn-pick-file">📁 Chọn tệp User Story (.json) hoặc Epic (.txt)</button>
+        <button type="button" class="link" id="btn-load-sample-stories">📋 Nạp 6 User Stories mẫu (Muhammad Awais)</button>
+        <button type="button" class="link" id="sample-request">Điền đề bài mẫu</button>
         <button type="button" class="link" id="sample-code">Thử mã có secret giả</button>
       </div>
+      <p id="file-status" class="muted" style="color: #14603b; font-weight: 600;" hidden></p>
+
       <details id="code-options">
-        <summary>Mã Python có sẵn (tùy chọn)</summary>
+        <summary>Mã Python có sẵn (tùy chọn cho chế độ Micro)</summary>
         <label for="initial-code">Mã cần kiểm tra hoặc sửa</label>
-        <textarea id="initial-code" rows="7" maxlength="12000" spellcheck="false" placeholder="Để trống nếu muốn Developer viết mã mới."></textarea>
+        <textarea id="initial-code" rows="5" maxlength="12000" spellcheck="false" placeholder="Để trống nếu muốn Developer viết mã mới."></textarea>
       </details>
-      <div class="actions">
-        <button type="submit" id="next">Chạy yêu cầu</button>
+
+      <div class="actions" style="margin-top: 1rem;">
+        <button type="submit" id="next">Chạy toàn bộ quy trình</button>
         <button type="button" class="link" id="new-request">Yêu cầu mới</button>
       </div>
       <p id="connection" class="muted" role="status"></p>
     </form>
+
     <section class="panel" aria-labelledby="result-heading">
-      <h2 id="result-heading">Đầu ra</h2>
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: .8rem;">
+        <h2 id="result-heading" style="margin: 0;">Đầu ra (Deliverables & KPIs)</h2>
+        <div>
+          <button type="button" id="btn-download-md" style="background: #14603b; color: white; padding: .4rem .75rem; font-size: .88rem; border-radius: 5px; font-weight: 600;" hidden>📥 Tải Báo cáo Markdown (.md)</button>
+        </div>
+      </div>
       <p id="status" role="status">Kết quả sẽ xuất hiện sau khi chạy yêu cầu.</p>
       <p id="step-explanation" class="muted" hidden></p>
       <p id="error" role="alert" hidden></p>
       <div id="output"></div>
       <details class="history" id="history-panel" hidden>
-        <summary>Nhật ký xử lý</summary>
+        <summary>Nhật ký xử lý (Coordination Events)</summary>
         <ol id="history"></ol>
         <p id="usage" class="muted"></p>
-        <button type="button" class="link" id="export">Tải kết quả phiên JSON</button>
+        <div style="display: flex; gap: 1rem; margin-top: .6rem;">
+          <button type="button" class="link" id="btn-download-md-secondary" style="font-weight: 600; color: #14603b;" hidden>📥 Tải Báo cáo Markdown (.md)</button>
+          <button type="button" class="link" id="export">Tải kết quả JSON</button>
+        </div>
       </details>
       <button type="button" id="accept" hidden>Chấp nhận kết quả</button>
     </section>
