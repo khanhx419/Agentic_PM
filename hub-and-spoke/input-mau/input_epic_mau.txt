@@ -1,0 +1,1 @@
+Xây dựng tính năng đăng ký và đặt lịch hẹn khám bệnh trực tuyến cho bệnh nhân. Hệ thống cần có API backend xử lý kiểm tra định dạng email, mật khẩu, chống trùng lịch hẹn và bảo mật khóa bí mật qua biến môi trường. Phía frontend cần có giao diện form đặt lịch phản hồi nhanh bằng React, kiểm tra dữ liệu trước khi gửi và thông báo lỗi rõ ràng cho người dùng.

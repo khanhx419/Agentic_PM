@@ -1,0 +1,44 @@
+[
+  {
+    "id": "ST-1",
+    "title": "Backend API Endpoint for Appointment Creation",
+    "description": "Create REST POST /api/appointments with Pydantic validation for patient email, appointment time, and doctor ID.",
+    "type": "BACKEND",
+    "story_points": 5
+  },
+  {
+    "id": "ST-2",
+    "title": "Frontend Appointment Booking Form Component",
+    "description": "Interactive React/TSX form with datepicker, time selector, input validation, and submit handler.",
+    "type": "FRONTEND",
+    "story_points": 3
+  },
+  {
+    "id": "ST-3",
+    "title": "Backend Security Sanitization & Environment Token Handler",
+    "description": "Implement authentication token verification, rate limiting, and safe environment variable access without hardcoded keys.",
+    "type": "BACKEND",
+    "story_points": 5
+  },
+  {
+    "id": "ST-4",
+    "title": "Frontend Confirmation Banner & Error Notification State",
+    "description": "Client-side alert notifications for booking success, invalid email formats, and network error handling.",
+    "type": "FRONTEND",
+    "story_points": 2
+  },
+  {
+    "id": "ST-5",
+    "title": "Backend Database Persistence & Conflict Check Service",
+    "description": "Validate doctor availability in database, avoid double booking, and commit new appointment records.",
+    "type": "BACKEND",
+    "story_points": 3
+  },
+  {
+    "id": "ST-6",
+    "title": "Frontend User Session State & Booking Summary Navigation",
+    "description": "Store booking reference in local reactive state and redirect user to appointment summary page.",
+    "type": "FRONTEND",
+    "story_points": 2
+  }
+]
