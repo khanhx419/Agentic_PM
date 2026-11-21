@@ -16,14 +16,13 @@
 
   <div class="workspace">
     <form id="demo-form" class="panel">
-      <h2>1. Tệp đầu vào & Chế độ</h2>
+      <h2>1. Tệp đầu vào</h2>
 
-      <!-- Cho phép chọn MỌI loại tệp (.json, .txt, .md, .csv, ...) -->
+      <!-- Cho phép chọn MỌI loại tệp (.json, .txt, .md, .csv, .docx, ...) -->
       <input type="file" id="file-picker" style="display: none;">
 
       <div class="actions" style="margin-top: .4rem;">
-        <button type="button" id="btn-pick-file">📁 Chọn tệp bất kỳ</button>
-        <button type="button" id="btn-download-sample" style="background: #55697e;">⬇️ Tải file mẫu (.json)</button>
+        <button type="button" id="btn-pick-file">📁 Chọn tệp đầu vào</button>
       </div>
 
       <div id="selected-file-box" style="margin: .9rem 0; padding: .8rem; background: #f0f7f4; border: 1px solid #b7dfc9; border-radius: 6px;" hidden>
@@ -35,14 +34,8 @@
       </div>
 
       <p id="no-file-hint" class="muted">
-        Chưa chọn tệp nào. Bấm <b>Chọn tệp bất kỳ</b> (.json, .txt, .md...) hoặc tải file mẫu để chỉnh sửa và tải lên.
+        Chưa chọn tệp nào. Bấm <b>Chọn tệp đầu vào</b> để nạp bất kỳ tệp User Stories / yêu cầu nào (.json, .txt, .md, .csv, .docx...).
       </p>
-
-      <label for="execution-mode">Chế độ thực thi</label>
-      <select id="execution-mode" style="width: 100%; padding: .5rem .6rem; border-radius: 5px; border: 1px solid #899cad; margin-bottom: .6rem; font: inherit;">
-        <option value="full-sdlc" selected>🚀 Full SDLC Multi-Agent (Chuẩn Muhammad Awais 2026)</option>
-        <option value="micro-hub">⚡ Micro Hub-and-Spoke (LangGraph — 1 hàm Python + AST)</option>
-      </select>
 
       <div id="gov-container">
         <label for="gov-mode">Mức độ Quản trị an toàn (Governance Mode)</label>

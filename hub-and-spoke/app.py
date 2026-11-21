@@ -99,11 +99,30 @@ def make_server(port=8767, model=None, store=None):
 
             try:
                 size = int(self.headers.get('Content-Length', '0'))
-                if not 0 < size <= 80000:
+                max_size = 2_000_000 if self.path in ('/api/parse-file', '/api/full-sdlc') else 80000
+                if not 0 < size <= max_size:
                     raise ValueError('Yêu cầu quá dài hoặc rỗng.')
                 data = json.loads(self.rfile.read(size))
                 if not isinstance(data, dict):
                     raise ValueError('Yêu cầu phải là JSON object.')
+
+                # Trích xuất văn bản từ tệp Word (.docx)
+                if self.path == '/api/parse-file':
+                    import base64, io, zipfile
+                    import xml.etree.ElementTree as ET
+                    raw_b64 = data.get('content_base64') or ''
+                    raw_bytes = base64.b64decode(raw_b64)
+                    with zipfile.ZipFile(io.BytesIO(raw_bytes)) as zf:
+                        xml_bytes = zf.read('word/document.xml')
+                    tree = ET.fromstring(xml_bytes)
+                    ns = {'w': 'http://schemas.openxmlformats.org/wordprocessingml/2006/main'}
+                    lines = []
+                    for p in tree.findall('.//w:p', ns):
+                        texts = [t.text for t in p.findall('.//w:t', ns) if t.text]
+                        line = ''.join(texts).strip()
+                        if line:
+                            lines.append(line)
+                    return self.send(200, {'text': '\n'.join(lines)})
 
                 # Khởi tạo phiên mới
                 if self.path == '/api/sessions':
