@@ -60,9 +60,14 @@ def make_server(port=8767, model=None, store=None):
 
             # Lấy danh sách 6 User Stories mẫu (Muhammad Awais 2026)
             if parsed.path == '/api/sample-stories':
-                sample_file = (ROOT.parent.parent.parent / 'smart_pms_ai' / 'input_user_stories_mau.json').resolve()
-                if sample_file.is_file():
-                    return self.send(200, json.loads(sample_file.read_text(encoding='utf-8')))
+                candidates = [
+                    ROOT / 'input-mau' / 'input_user_stories_mau.json',
+                    ROOT.parent.parent.parent / 'input_user_stories_mau.json',
+                    ROOT.parent.parent.parent / 'smart_pms_ai' / 'input_user_stories_mau.json',
+                ]
+                for sample_file in candidates:
+                    if sample_file.is_file():
+                        return self.send(200, json.loads(sample_file.read_text(encoding='utf-8')))
                 return self.send(404, {'error': 'Không tìm thấy file mẫu.'})
 
             # Lấy dữ liệu phiên làm việc
