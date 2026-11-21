@@ -134,14 +134,17 @@ def make_server(port=8767, model=None, store=None):
 
                     temp_stories_file = None
                     if custom_stories:
+                        (smart_dir / 'output').mkdir(parents=True, exist_ok=True)
                         temp_stories_file = str(smart_dir / 'output' / '_temp_custom_stories.json')
                         with open(temp_stories_file, 'w', encoding='utf-8') as f:
                             json.dump(custom_stories, f, ensure_ascii=False)
                         cmd.extend(['--stories-file', temp_stories_file])
 
-                    p = subprocess.run(cmd, cwd=str(smart_dir), capture_output=True, text=True, encoding='utf-8')
+                    env = {**os.environ, 'PYTHONIOENCODING': 'utf-8', 'PYTHONUTF8': '1'}
+                    p = subprocess.run(cmd, cwd=str(smart_dir), env=env, capture_output=True, text=True, encoding='utf-8', errors='replace')
                     if p.returncode != 0:
-                        return self.send(500, {'error': f'Lỗi khi chạy SDLC: {p.stderr or p.stdout}'})
+                        err_detail = (p.stderr or '').strip() or (p.stdout or '').strip()
+                        return self.send(500, {'error': f'Lỗi khi chạy SDLC: {err_detail}'})
 
                     output_dir = smart_dir / 'output'
                     aggregates_file = output_dir / 'aggregates.json'
