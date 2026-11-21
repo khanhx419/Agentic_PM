@@ -186,7 +186,7 @@ function render() {
   $('btn-run').disabled = busy || !hasFile;
   $('btn-run').textContent = busy ? '⏳ Đang chạy quy trình…' : '▶️ Chạy quy trình';
 
-  for (const id of ['btn-pick-file', 'btn-load-sample-stories', 'btn-download-sample', 'btn-reset', 'execution-mode', 'gov-mode']) {
+  for (const id of ['btn-pick-file', 'btn-download-sample', 'btn-reset', 'execution-mode', 'gov-mode']) {
     const el = $(id);
     if (el) el.disabled = busy;
   }
@@ -240,19 +240,6 @@ $('file-picker').addEventListener('change', event => {
   reader.readAsText(file);
 });
 
-// 2. Nạp nhanh 6 User Stories mẫu
-$('btn-load-sample-stories').addEventListener('click', async () => {
-  try {
-    const stories = await api('/api/sample-stories');
-    sdlcResult = null;
-    session = null;
-    latestMarkdown = '';
-    showSelectedFile('input_user_stories_mau.json (mẫu sẵn)', stories, JSON.stringify(stories, null, 2));
-  } catch (err) {
-    error = 'Không nạp được tệp mẫu: ' + err.message;
-    render();
-  }
-});
 
 // 3. Tải file mẫu (.json) về máy
 $('btn-download-sample').addEventListener('click', async () => {
