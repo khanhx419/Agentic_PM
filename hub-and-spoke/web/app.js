@@ -156,6 +156,26 @@ function renderFullSdlc(data) {
   }
   html += '</table>';
 
+  // Hiển thị mã nguồn & Unit Test sinh ra cho từng User Story
+  const withCode = stories.filter(s => s.code || s.tests);
+  if (withCode.length > 0) {
+    html += '<h3 style="margin-top: 1.2rem;">💻 Mã nguồn & Unit Test đã sinh ra (' + withCode.length + ' stories)</h3>';
+    withCode.forEach((s, idx) => {
+      const ext = s.ext || (s.type === 'FRONTEND' ? 'tsx' : 'py');
+      html += '<details style="margin-bottom: .7rem; border: 1px solid #d9e2eb; border-radius: 6px; padding: .5rem .75rem; background: #fafcff;"' + (idx === 0 ? ' open' : '') + '>';
+      html += '<summary style="cursor: pointer; font-weight: 600; color: #1c4b75;">' + esc(s.id) + ': ' + esc(s.title) + ' <span class="muted">(' + esc(s.id) + '_impl.' + esc(ext) + ' &amp; ' + esc(s.id) + '_test.' + esc(ext) + ')</span></summary>';
+      if (s.code) {
+        html += '<p style="margin: .6rem 0 .25rem; font-weight: 600; font-size: .85rem;">📄 Mã nguồn triển khai (<code>' + esc(s.id) + '_impl.' + esc(ext) + '</code>)</p>';
+        html += '<pre style="margin: 0 0 .6rem; padding: .7rem; background: #1e2430; color: #e8eef5; border-radius: 5px; overflow-x: auto; font-size: .8rem; max-height: 360px;"><code>' + esc(s.code) + '</code></pre>';
+      }
+      if (s.tests) {
+        html += '<p style="margin: .6rem 0 .25rem; font-weight: 600; font-size: .85rem;">🧪 Mã kiểm thử Unit Test (<code>' + esc(s.id) + '_test.' + esc(ext) + '</code>)</p>';
+        html += '<pre style="margin: 0; padding: .7rem; background: #1e2430; color: #d4f5dc; border-radius: 5px; overflow-x: auto; font-size: .8rem; max-height: 280px;"><code>' + esc(s.tests) + '</code></pre>';
+      }
+      html += '</details>';
+    });
+  }
+
   $('output').innerHTML = html;
   const events = data.events || [];
   $('history-panel').hidden = events.length === 0;

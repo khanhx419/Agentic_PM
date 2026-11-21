@@ -185,13 +185,24 @@ def make_server(port=8767, model=None, store=None):
                         if sample_json.is_file():
                             stories_source = json.loads(sample_json.read_text(encoding='utf-8'))
 
+                    stories_dir = output_dir / 'stories'
                     for s in (stories_source or []):
+                        s_id = s.get('id', 'ST-1')
+                        s_type = s.get('type', 'BACKEND')
+                        ext = 'tsx' if s_type == 'FRONTEND' else 'py'
+                        impl_path = stories_dir / f'{s_id}_impl.{ext}'
+                        test_path = stories_dir / f'{s_id}_test.{ext}'
+                        code_txt = impl_path.read_text(encoding='utf-8', errors='replace') if impl_path.is_file() else ''
+                        test_txt = test_path.read_text(encoding='utf-8', errors='replace') if test_path.is_file() else ''
                         stories_data.append({
-                            'id': s.get('id', 'ST-1'),
+                            'id': s_id,
                             'title': s.get('title', ''),
-                            'type': s.get('type', 'BACKEND'),
+                            'type': s_type,
                             'story_points': s.get('story_points', 3),
-                            'status': 'COMPLETED'
+                            'status': 'COMPLETED',
+                            'ext': ext,
+                            'code': code_txt,
+                            'tests': test_txt,
                         })
 
                     markdown_content = ""
