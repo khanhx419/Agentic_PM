@@ -6,10 +6,13 @@ const esc = value => String(value ?? '').replace(/[&<>"']/g, char => ({
 })[char]);
 
 let config = null;
+let session = null;
+let sessionToken = '';
 let busy = false;
 let error = '';
 let loadedStories = null;
 let loadedFileName = '';
+let loadedRawText = '';
 let latestMarkdown = '';
 let sdlcResult = null;
 
@@ -17,7 +20,7 @@ async function api(path, data) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 165000);
   try {
-    const headers = {'X-App-Token': config?.app_token || ''};
+    const headers = {'X-App-Token': config?.app_token || '', 'X-Session-Token': sessionToken};
     const options = {headers, signal: controller.signal};
     if (data !== undefined) {
       options.method = 'POST';
@@ -36,14 +39,55 @@ async function api(path, data) {
   }
 }
 
-function showSelectedFile(fileName, stories) {
+// Chấp nhận mọi định dạng tệp (.json, .txt, .md, .csv, ...)
+function parseAnyFile(fileName, text) {
+  const trimmed = (text || '').trim();
+  if (!trimmed) throw new Error('Tệp rỗng, không có nội dung.');
+
+  // 1. Thử đọc dạng JSON User Stories
+  try {
+    const parsed = JSON.parse(trimmed);
+    const arr = Array.isArray(parsed) ? parsed : parsed?.stories;
+    if (Array.isArray(arr) && arr.length > 0 && typeof arr[0] === 'object') {
+      return arr.map((item, idx) => ({
+        id: item.id || ('ST-' + (idx + 1)),
+        title: item.title || item.description || ('Story ' + (idx + 1)),
+        description: item.description || item.title || '',
+        type: (item.type || (idx % 2 === 0 ? 'BACKEND' : 'FRONTEND')).toUpperCase(),
+        story_points: Number(item.story_points || item.points || 3),
+      }));
+    }
+  } catch (_) {
+    // Không phải JSON -> chuyển sang tách dòng văn bản tự do
+  }
+
+  // 2. Tách từng dòng / gạch đầu dòng trong tệp văn bản bất kỳ (.txt, .md, .csv, ...)
+  const lines = trimmed
+    .split(/\r?\n/)
+    .map(l => l.replace(/^\s*(?:[-*•]+|\d+[.)])\s*/, '').trim())
+    .filter(l => l.length > 0 && !l.startsWith('#'));
+
+  const items = lines.length > 0 ? lines : [trimmed];
+  const fePattern = /frontend|ui|form|react|giao di[eệ]n|trang|nút|hi[eể]n th[iị]|view|component|css|html/i;
+
+  return items.slice(0, 20).map((line, idx) => ({
+    id: 'ST-' + (idx + 1),
+    title: line.length > 90 ? line.slice(0, 87) + '...' : line,
+    description: line,
+    type: fePattern.test(line) ? 'FRONTEND' : 'BACKEND',
+    story_points: 3,
+  }));
+}
+
+function showSelectedFile(fileName, stories, rawText) {
   loadedFileName = fileName;
   loadedStories = stories;
+  loadedRawText = rawText || stories.map(s => s.id + ': ' + s.title + ' - ' + s.description).join('\n');
   $('selected-file-name').textContent = '📄 Tệp đã chọn: ' + fileName;
   $('selected-file-count').textContent = stories.length + ' User Stories';
   $('selected-stories-preview').innerHTML = stories.map(s =>
-    '<li><b>' + esc(s.id || 'ST') + '</b>: ' + esc(s.title) +
-    ' <span class="muted">(' + esc(s.type || 'BACKEND') + ' · ' + esc(s.story_points || 3) + ' pts)</span></li>'
+    '<li><b>' + esc(s.id) + '</b>: ' + esc(s.title) +
+    ' <span class="muted">(' + esc(s.type) + ' · ' + esc(s.story_points) + ' pts)</span></li>'
   ).join('');
   $('selected-file-box').hidden = false;
   $('no-file-hint').hidden = true;
@@ -51,7 +95,7 @@ function showSelectedFile(fileName, stories) {
   render();
 }
 
-function renderOutput(data) {
+function renderFullSdlc(data) {
   const m = data.metrics || {};
   const stories = data.stories || [];
 
@@ -84,11 +128,49 @@ function renderOutput(data) {
   html += '</table>';
 
   $('output').innerHTML = html;
-
   const events = data.events || [];
   $('history-panel').hidden = events.length === 0;
   $('history').innerHTML = events.map(ev =>
     '<li><b>[' + esc(ev.type) + ']</b> · ' + esc(ev.message) + ' <span class="muted">(' + esc(ev.datetime) + ')</span></li>'
+  ).join('');
+}
+
+function buildMicroMarkdown(s) {
+  const lines = ['# BÁO CÁO MICRO HUB-AND-SPOKE (LANGGRAPH)', ''];
+  lines.push('**Tệp đầu vào:** ' + loadedFileName);
+  if (s.story) {
+    lines.push('', '## 1. Kế hoạch (Planner)', '- **Tiêu đề:** ' + s.story.title);
+    (s.story.acceptance || []).forEach(a => lines.push('- ' + a));
+  }
+  if (s.code) {
+    lines.push('', '## 2. Mã nguồn (Developer · r' + s.revision + ')', '```python', s.code, '```');
+  }
+  if (s.qa || s.governance) {
+    lines.push('', '## 3. Kiểm thử & Quản trị',
+      '- **QA:** ' + (s.qa?.pass ? 'PASS' : 'FAIL'),
+      '- **Governance AST:** ' + (s.governance?.pass ? 'PASS' : 'FAIL'));
+  }
+  return lines.join('\n');
+}
+
+function renderMicroHub(s) {
+  let html = '';
+  if (s.story) {
+    html += '<h3>Kế hoạch (Planner)</h3><p>' + esc(s.story.title) + '</p><ul>' +
+      (s.story.acceptance || []).map(item => '<li>' + esc(item) + '</li>').join('') + '</ul>';
+  }
+  if (s.code) {
+    html += '<h3>Mã Python · r' + esc(s.revision) + '</h3><pre><code>' + esc(s.code) + '</code></pre>';
+  }
+  if (s.qa || s.governance) {
+    html += '<div class="check"><span>QA</span><b class="' + (s.qa?.pass ? 'pass' : 'fail') + '">' + (s.qa?.pass ? 'PASS' : 'FAIL') + '</b></div>';
+    html += '<div class="check"><span>Governance AST</span><b class="' + (s.governance?.pass ? 'pass' : 'fail') + '">' + (s.governance?.pass ? 'PASS' : 'FAIL') + '</b></div>';
+  }
+  $('output').innerHTML = html;
+  const events = s.events || [];
+  $('history-panel').hidden = events.length === 0;
+  $('history').innerHTML = events.map(ev =>
+    '<li><b>' + esc(ev.actor) + '</b> · ' + esc(ev.message) + '</li>'
   ).join('');
 }
 
@@ -97,11 +179,14 @@ function render() {
   $('error').textContent = error;
   $('error').hidden = !error;
 
+  const isFull = $('execution-mode').value === 'full-sdlc';
+  $('gov-container').style.display = isFull ? 'block' : 'none';
+
   const hasFile = Array.isArray(loadedStories) && loadedStories.length > 0;
   $('btn-run').disabled = busy || !hasFile;
-  $('btn-run').textContent = busy ? '⏳ Đang chạy quy trình SDLC…' : '▶️ Chạy quy trình SDLC';
+  $('btn-run').textContent = busy ? '⏳ Đang chạy quy trình…' : '▶️ Chạy quy trình';
 
-  for (const id of ['btn-pick-file', 'btn-load-sample-stories', 'btn-download-sample', 'btn-reset', 'gov-mode']) {
+  for (const id of ['btn-pick-file', 'btn-load-sample-stories', 'btn-download-sample', 'btn-reset', 'execution-mode', 'gov-mode']) {
     const el = $(id);
     if (el) el.disabled = busy;
   }
@@ -109,20 +194,27 @@ function render() {
   $('btn-download-md').hidden = !latestMarkdown;
 
   if (busy) {
-    $('status').textContent = '🚀 Coordinator đang điều phối các Spoke (Dev FE/BE ➔ QA ➔ PM Governance)…';
+    $('status').textContent = isFull
+      ? '🚀 Coordinator đang điều phối các Spoke (Dev FE/BE ➔ QA ➔ PM Governance)…'
+      : '⚡ LangGraph đang chạy từng bước Hub-and-Spoke…';
   } else if (sdlcResult) {
     $('status').textContent = '✅ Đã hoàn thành toàn bộ quy trình SDLC cho tệp ' + loadedFileName + '.';
-    renderOutput(sdlcResult);
+    renderFullSdlc(sdlcResult);
+  } else if (session) {
+    $('status').textContent = '✅ Hoàn thành Micro Hub-and-Spoke (' + session.phase + ').';
+    renderMicroHub(session);
   } else {
     $('status').textContent = hasFile
-      ? 'Đã sẵn sàng. Bấm "Chạy quy trình SDLC" để bắt đầu.'
-      : 'Chọn tệp User Story và bấm Chạy để xem kết quả toàn bộ vòng đời SDLC.';
+      ? 'Đã sẵn sàng. Chọn chế độ và bấm "Chạy quy trình".'
+      : 'Chọn tệp đầu vào và bấm Chạy để bắt đầu.';
     $('output').innerHTML = '';
     $('history-panel').hidden = true;
   }
 }
 
-// 1. Chọn tệp User Story (.json) từ máy tính
+$('execution-mode').addEventListener('change', render);
+
+// 1. Chọn BẤT KỲ tệp nào từ máy tính
 $('btn-pick-file').addEventListener('click', () => {
   $('file-picker').value = '';
   $('file-picker').click();
@@ -134,14 +226,12 @@ $('file-picker').addEventListener('change', event => {
   const reader = new FileReader();
   reader.onload = e => {
     try {
-      const parsed = JSON.parse(e.target.result);
-      const stories = Array.isArray(parsed) ? parsed : parsed.stories;
-      if (!Array.isArray(stories) || stories.length === 0) {
-        throw new Error('Tệp JSON cần chứa một mảng các User Stories.');
-      }
+      const raw = e.target.result;
+      const stories = parseAnyFile(file.name, raw);
       sdlcResult = null;
+      session = null;
       latestMarkdown = '';
-      showSelectedFile(file.name, stories);
+      showSelectedFile(file.name, stories, raw);
     } catch (err) {
       error = 'Không đọc được tệp ' + file.name + ': ' + err.message;
       render();
@@ -150,13 +240,14 @@ $('file-picker').addEventListener('change', event => {
   reader.readAsText(file);
 });
 
-// 2. Nạp nhanh 6 User Stories mẫu từ server
+// 2. Nạp nhanh 6 User Stories mẫu
 $('btn-load-sample-stories').addEventListener('click', async () => {
   try {
     const stories = await api('/api/sample-stories');
     sdlcResult = null;
+    session = null;
     latestMarkdown = '';
-    showSelectedFile('input_user_stories_mau.json (mẫu sẵn)', stories);
+    showSelectedFile('input_user_stories_mau.json (mẫu sẵn)', stories, JSON.stringify(stories, null, 2));
   } catch (err) {
     error = 'Không nạp được tệp mẫu: ' + err.message;
     render();
@@ -182,26 +273,42 @@ $('btn-download-sample').addEventListener('click', async () => {
   }
 });
 
-// 4. Chạy quy trình Full SDLC
+// 4. Chạy quy trình theo chế độ đã chọn
 $('demo-form').addEventListener('submit', async event => {
   event.preventDefault();
   if (busy || !loadedStories) return;
 
+  const isFull = $('execution-mode').value === 'full-sdlc';
   busy = true;
   error = '';
   sdlcResult = null;
+  session = null;
   latestMarkdown = '';
   render();
 
   try {
     config = await api('/api/config');
-    const res = await api('/api/full-sdlc', {
-      epic: 'User Stories từ ' + loadedFileName,
-      governance_mode: $('gov-mode').value,
-      custom_stories: loadedStories,
-    });
-    sdlcResult = res.data;
-    latestMarkdown = res.markdown || '';
+    if (isFull) {
+      const res = await api('/api/full-sdlc', {
+        epic: 'User Stories từ ' + loadedFileName,
+        governance_mode: $('gov-mode').value,
+        custom_stories: loadedStories,
+      });
+      sdlcResult = res.data;
+      latestMarkdown = res.markdown || '';
+    } else {
+      if (!config.configured) throw new Error('Chưa có Gemini API key để chạy chế độ Micro.');
+      const desc = loadedRawText.length >= 20 ? loadedRawText.slice(0, 9000) : ('Yêu cầu từ tệp ' + loadedFileName + ': ' + loadedRawText);
+      const created = await api('/api/sessions', {kind: 'hub', description: desc, initial_code: ''});
+      session = created.session;
+      sessionToken = created.session_token;
+      while (session && !['review', 'accepted', 'exhausted'].includes(session.status)) {
+        const next = await api('/api/next', {id: session.id, version: session.version, confirmed: false});
+        session = next.session;
+        render();
+      }
+      latestMarkdown = buildMicroMarkdown(session);
+    }
   } catch (err) {
     error = err.message;
   } finally {
@@ -229,7 +336,9 @@ $('btn-reset').addEventListener('click', () => {
   if (busy) return;
   loadedStories = null;
   loadedFileName = '';
+  loadedRawText = '';
   sdlcResult = null;
+  session = null;
   latestMarkdown = '';
   error = '';
   $('file-picker').value = '';

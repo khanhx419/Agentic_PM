@@ -61,9 +61,9 @@ def make_server(port=8767, model=None, store=None):
             # Lấy danh sách 6 User Stories mẫu (Muhammad Awais 2026)
             if parsed.path == '/api/sample-stories':
                 candidates = [
+                    ROOT.parent.parent / 'input_user_stories_mau.json',
                     ROOT / 'input-mau' / 'input_user_stories_mau.json',
-                    ROOT.parent.parent.parent / 'input_user_stories_mau.json',
-                    ROOT.parent.parent.parent / 'smart_pms_ai' / 'input_user_stories_mau.json',
+                    ROOT.parent.parent / 'Du-an-Smart-PMS-AI' / 'input_user_stories_mau.json',
                 ]
                 for sample_file in candidates:
                     if sample_file.is_file():
@@ -126,7 +126,7 @@ def make_server(port=8767, model=None, store=None):
                     import sys, subprocess, os
                     from pathlib import Path
 
-                    smart_dir = (ROOT.parent.parent.parent / 'smart_pms_ai' / 'backend').resolve()
+                    smart_dir = (ROOT.parent.parent / 'Du-an-Smart-PMS-AI' / 'backend').resolve()
                     main_py = str(smart_dir / 'main.py')
                     py_bin = sys.executable
 
