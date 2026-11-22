@@ -128,55 +128,70 @@ def make_server(port=8767, model=None, store=None):
       }};
 
       try {{
-        const compiled = Babel.transform(rawCode, {{
-          filename: '{title_esc}_impl.tsx',
-          presets: [['env', {{ modules: 'commonjs' }}], 'react', 'typescript']
-        }}).code;
+        // Chuyển import/export thành code chạy trực tiếp trên trình duyệt (giữ nguyên 100% logic gốc)
+        let cleanCode = rawCode
+          .replace(/^\\s*import\\s+[\\s\\S]*?from\\s+['"][^'"]+['"]\\s*;?\\s*$/gm, '')
+          .replace(/^\\s*export\\s+default\\s+/gm, '')
+          .replace(/^\\s*export\\s+(?=(?:async\\s+)?(?:function|const|let|var|class)\\b)/gm, '');
 
-        const exportsObj = {{}};
-        const moduleObj = {{ exports: exportsObj }};
-        const requireFn = function(mod) {{
-          if (mod === 'react') return Object.assign({{ __esModule: true, default: window.React }}, window.React);
-          if (mod === 'react-dom' || mod === 'react-dom/client') return Object.assign({{ __esModule: true, default: window.ReactDOM }}, window.ReactDOM);
-          return {{}};
-        }};
+        const matchComp = cleanCode.match(/(?:function|const|let|var|class)\\s+([A-Z][A-Za-z0-9_]*)/);
+        const compName = matchComp ? matchComp[1] : 'LoginForm';
 
-        new Function('React', 'ReactDOM', 'require', 'exports', 'module', compiled)(
-          window.React, window.ReactDOM, requireFn, exportsObj, moduleObj
-        );
+        const compiled = Babel.transform(
+          cleanCode + '\\n;return (typeof ' + compName + ' !== "undefined" ? ' + compName + ' : null);',
+          {{
+            filename: '{title_esc}_impl.tsx',
+            presets: ['react', 'typescript']
+          }}
+        ).code;
 
-        const Comp = moduleObj.exports.default
-          || Object.values(moduleObj.exports).find(v => typeof v === 'function')
-          || Object.values(exportsObj).find(v => typeof v === 'function');
+        const R = window.React;
+        const Comp = new Function(
+          'React', 'useState', 'useEffect', 'useRef', 'useMemo', 'useCallback', 'Fragment',
+          compiled
+        )(R, R.useState, R.useEffect, R.useRef, R.useMemo, R.useCallback, R.Fragment);
 
-        const {{ useState }} = window.React;
+        class ErrorBoundary extends R.Component {{
+          constructor(props) {{ super(props); this.state = {{ err: null }}; }}
+          static getDerivedStateFromError(err) {{ return {{ err }}; }}
+          render() {{
+            if (this.state.err) {{
+              return R.createElement('div', {{ className: 'p-4 bg-rose-950 border border-rose-800 rounded-xl text-rose-200 text-xs' }},
+                R.createElement('b', null, 'Lỗi render giao diện: '), String(this.state.err.message || this.state.err));
+            }}
+            return this.props.children;
+          }}
+        }}
+
         function PreviewShell() {{
-          const [result, setResult] = useState(null);
-          return React.createElement('div', {{ className: 'space-y-4' }},
-            React.createElement('div', {{ className: 'text-center' }},
-              React.createElement('span', {{ className: 'text-xs font-semibold px-3 py-1 rounded-full bg-blue-950 text-blue-300 border border-blue-800' }}, 'Live Preview · Mã gốc từ Hub-and-Spoke'),
-              React.createElement('h1', {{ className: 'text-lg font-bold mt-2' }}, '{title_esc}_impl.tsx')
+          const [result, setResult] = R.useState(null);
+          return R.createElement('div', {{ className: 'space-y-4' }},
+            R.createElement('div', {{ className: 'text-center' }},
+              R.createElement('span', {{ className: 'text-xs font-semibold px-3 py-1 rounded-full bg-blue-950 text-blue-300 border border-blue-800' }}, 'Live Preview · Mã gốc từ Hub-and-Spoke'),
+              R.createElement('h1', {{ className: 'text-lg font-bold mt-2' }}, '{title_esc}_impl.tsx')
             ),
             result
-              ? React.createElement('div', {{ className: 'p-5 bg-slate-900 border border-emerald-700 rounded-xl space-y-2 text-sm' }},
-                  React.createElement('div', {{ className: 'text-emerald-400 font-bold' }}, '✅ Thao tác thành công!'),
-                  React.createElement('div', {{ className: 'text-xs text-slate-300 break-all' }}, 'Kết quả trả về: ', React.createElement('code', {{ className: 'text-blue-400' }}, String(result))),
-                  React.createElement('button', {{
+              ? R.createElement('div', {{ className: 'p-5 bg-slate-900 border border-emerald-700 rounded-xl space-y-2 text-sm' }},
+                  R.createElement('div', {{ className: 'text-emerald-400 font-bold' }}, '✅ Thao tác thành công!'),
+                  R.createElement('div', {{ className: 'text-xs text-slate-300 break-all' }}, 'Kết quả trả về: ', R.createElement('code', {{ className: 'text-blue-400' }}, String(result))),
+                  R.createElement('button', {{
                     onClick: () => setResult(null),
                     className: 'w-full py-2 mt-2 bg-slate-800 hover:bg-slate-700 rounded text-xs font-semibold'
                   }}, 'Thử lại')
                 )
               : Comp
-                ? React.createElement(Comp, {{
+                ? R.createElement(Comp, {{
                     onLoginSuccess: (tok) => setResult(tok),
                     onSuccess: (val) => setResult(val || 'OK'),
                     onLoginError: (err) => console.log('Error:', err)
                   }})
-                : React.createElement('div', {{ className: 'p-4 bg-rose-950 border border-rose-800 rounded text-rose-200 text-sm' }}, 'Không tìm thấy React Component được export trong tệp.')
+                : R.createElement('div', {{ className: 'p-4 bg-rose-950 border border-rose-800 rounded text-rose-200 text-sm' }}, 'Không tìm thấy React Component trong tệp.')
           );
         }}
 
-        ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(PreviewShell));
+        ReactDOM.createRoot(document.getElementById('root')).render(
+          R.createElement(ErrorBoundary, null, R.createElement(PreviewShell))
+        );
       }} catch (err) {{
         document.getElementById('root').innerHTML =
           '<div class="p-4 bg-rose-950 border border-rose-800 rounded-xl text-rose-200 text-xs"><b>Lỗi chạy thử:</b> ' + String(err.message || err) + '</div>';
