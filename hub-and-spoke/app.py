@@ -137,18 +137,15 @@ def make_server(port=8767, model=None, store=None):
         const matchComp = cleanCode.match(/(?:function|const|let|var|class)\\s+([A-Z][A-Za-z0-9_]*)/);
         const compName = matchComp ? matchComp[1] : 'LoginForm';
 
-        const compiled = Babel.transform(
-          cleanCode + '\\n;return (typeof ' + compName + ' !== "undefined" ? ' + compName + ' : null);',
-          {{
-            filename: '{title_esc}_impl.tsx',
-            presets: ['react', 'typescript']
-          }}
-        ).code;
+        const compiled = Babel.transform(cleanCode, {{
+          filename: '{title_esc}_impl.tsx',
+          presets: ['react', 'typescript']
+        }}).code;
 
         const R = window.React;
         const Comp = new Function(
           'React', 'useState', 'useEffect', 'useRef', 'useMemo', 'useCallback', 'Fragment',
-          compiled
+          compiled + '\\n;return (typeof ' + compName + ' !== "undefined" ? ' + compName + ' : null);'
         )(R, R.useState, R.useEffect, R.useRef, R.useMemo, R.useCallback, R.Fragment);
 
         class ErrorBoundary extends R.Component {{
