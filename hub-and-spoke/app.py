@@ -130,14 +130,14 @@ def make_server(port=8767, model=None, store=None):
       try {{
         const compiled = Babel.transform(rawCode, {{
           filename: '{title_esc}_impl.tsx',
-          presets: ['env', 'react', 'typescript']
+          presets: [['env', {{ modules: 'commonjs' }}], 'react', 'typescript']
         }}).code;
 
         const exportsObj = {{}};
         const moduleObj = {{ exports: exportsObj }};
         const requireFn = function(mod) {{
-          if (mod === 'react') return window.React;
-          if (mod === 'react-dom' || mod === 'react-dom/client') return window.ReactDOM;
+          if (mod === 'react') return Object.assign({{ __esModule: true, default: window.React }}, window.React);
+          if (mod === 'react-dom' || mod === 'react-dom/client') return Object.assign({{ __esModule: true, default: window.ReactDOM }}, window.ReactDOM);
           return {{}};
         }};
 
