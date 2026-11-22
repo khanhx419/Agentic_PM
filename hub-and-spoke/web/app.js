@@ -185,8 +185,11 @@ function renderFullSdlc(data) {
   html += '<div style="margin-top: .5rem;">';
   withCode.forEach((s, idx) => {
     const ext = s.ext || (s.type === 'FRONTEND' ? 'tsx' : 'py');
+    const previewBtn = ext === 'tsx'
+      ? ' <a href="/preview/' + encodeURIComponent(s.id) + '" target="_blank" rel="noopener" style="display:inline-block;margin-left:.5rem;padding:2px 8px;background:#14603b;color:#fff;border-radius:4px;text-decoration:none;font-size:.78rem;font-weight:600;">👁️ Chạy thử giao diện</a>'
+      : '';
     html += '<details style="margin-bottom: .6rem; border: 1px solid #e1e8ed; border-radius: 5px; padding: .45rem .65rem; background: #fafcff;"' + (idx === 0 ? ' open' : '') + '>';
-    html += '<summary style="cursor: pointer; font-weight: 600;">' + esc(s.id) + ': ' + esc(s.title) + ' (<code>' + esc(s.id) + '_impl.' + esc(ext) + '</code>)</summary>';
+    html += '<summary style="cursor: pointer; font-weight: 600;">' + esc(s.id) + ': ' + esc(s.title) + ' (<code>' + esc(s.id) + '_impl.' + esc(ext) + '</code>)' + previewBtn + '</summary>';
     html += '<pre style="margin: .5rem 0 0; padding: .7rem; background: #1e2430; color: #e8eef5; border-radius: 5px; overflow-x: auto; font-size: .8rem; max-height: 340px;"><code>' + esc(s.code) + '</code></pre>';
     html += '</details>';
   });

@@ -79,6 +79,124 @@ def make_server(port=8767, model=None, store=None):
                 except ValueError as error:
                     return self.send(404, {'error': str(error)})
 
+            # Chạy thử trực tiếp mã Frontend (.tsx) vừa được Hub-and-Spoke sinh ra (không cần sửa code)
+            if parsed.path.startswith('/preview/'):
+                import re, html as html_lib
+                story_id = parsed.path[len('/preview/'):].strip('/')
+                if not re.fullmatch(r'[A-Za-z0-9_-]+', story_id):
+                    return self.send(400, {'error': 'Story ID không hợp lệ.'})
+                smart_dir = (ROOT.parent.parent / 'Du-an-Smart-PMS-AI' / 'backend').resolve()
+                tsx_file = smart_dir / 'output' / 'stories' / f'{story_id}_impl.tsx'
+                if not tsx_file.is_file():
+                    return self.send(404, {'error': f'Không tìm thấy tệp giao diện {story_id}_impl.tsx.'})
+                raw_code = tsx_file.read_text(encoding='utf-8', errors='replace')
+                safe_code_json = json.dumps(raw_code).replace('</', '<\\/')
+                title_esc = html_lib.escape(story_id)
+                preview_html = f"""<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Live Preview · {title_esc}_impl.tsx</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+<body class="min-h-screen bg-slate-950 text-slate-100 flex flex-col items-center justify-center p-4">
+  <div id="root" class="w-full max-w-md"></div>
+  <script>
+    (function() {{
+      const rawCode = {safe_code_json};
+      const origFetch = window.fetch;
+      window.fetch = async function(url, options) {{
+        if (typeof url === 'string' && (url.startsWith('/api') || url.includes('/login') || url.includes('/auth'))) {{
+          await new Promise(r => setTimeout(r, 450));
+          let body = {{}};
+          try {{ body = JSON.parse(options && options.body || '{{}}'); }} catch(e) {{}}
+          return {{
+            ok: true,
+            status: 200,
+            json: async () => ({{
+              token: 'jwt_demo_' + Math.random().toString(36).slice(2, 10),
+              message: 'Thành công (Mock API)',
+              user: {{ email: body.email || 'user@example.com' }}
+            }})
+          }};
+        }}
+        return origFetch.apply(this, arguments);
+      }};
+
+      try {{
+        const compiled = Babel.transform(rawCode, {{
+          filename: '{title_esc}_impl.tsx',
+          presets: ['env', 'react', 'typescript']
+        }}).code;
+
+        const exportsObj = {{}};
+        const moduleObj = {{ exports: exportsObj }};
+        const requireFn = function(mod) {{
+          if (mod === 'react') return window.React;
+          if (mod === 'react-dom' || mod === 'react-dom/client') return window.ReactDOM;
+          return {{}};
+        }};
+
+        new Function('React', 'ReactDOM', 'require', 'exports', 'module', compiled)(
+          window.React, window.ReactDOM, requireFn, exportsObj, moduleObj
+        );
+
+        const Comp = moduleObj.exports.default
+          || Object.values(moduleObj.exports).find(v => typeof v === 'function')
+          || Object.values(exportsObj).find(v => typeof v === 'function');
+
+        const {{ useState }} = window.React;
+        function PreviewShell() {{
+          const [result, setResult] = useState(null);
+          return React.createElement('div', {{ className: 'space-y-4' }},
+            React.createElement('div', {{ className: 'text-center' }},
+              React.createElement('span', {{ className: 'text-xs font-semibold px-3 py-1 rounded-full bg-blue-950 text-blue-300 border border-blue-800' }}, 'Live Preview · Mã gốc từ Hub-and-Spoke'),
+              React.createElement('h1', {{ className: 'text-lg font-bold mt-2' }}, '{title_esc}_impl.tsx')
+            ),
+            result
+              ? React.createElement('div', {{ className: 'p-5 bg-slate-900 border border-emerald-700 rounded-xl space-y-2 text-sm' }},
+                  React.createElement('div', {{ className: 'text-emerald-400 font-bold' }}, '✅ Thao tác thành công!'),
+                  React.createElement('div', {{ className: 'text-xs text-slate-300 break-all' }}, 'Kết quả trả về: ', React.createElement('code', {{ className: 'text-blue-400' }}, String(result))),
+                  React.createElement('button', {{
+                    onClick: () => setResult(null),
+                    className: 'w-full py-2 mt-2 bg-slate-800 hover:bg-slate-700 rounded text-xs font-semibold'
+                  }}, 'Thử lại')
+                )
+              : Comp
+                ? React.createElement(Comp, {{
+                    onLoginSuccess: (tok) => setResult(tok),
+                    onSuccess: (val) => setResult(val || 'OK'),
+                    onLoginError: (err) => console.log('Error:', err)
+                  }})
+                : React.createElement('div', {{ className: 'p-4 bg-rose-950 border border-rose-800 rounded text-rose-200 text-sm' }}, 'Không tìm thấy React Component được export trong tệp.')
+          );
+        }}
+
+        ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(PreviewShell));
+      }} catch (err) {{
+        document.getElementById('root').innerHTML =
+          '<div class="p-4 bg-rose-950 border border-rose-800 rounded-xl text-rose-200 text-xs"><b>Lỗi chạy thử:</b> ' + String(err.message || err) + '</div>';
+      }}
+    }})();
+  </script>
+</body>
+</html>"""
+                body = preview_html.encode('utf-8')
+                self.send_response(200)
+                self.send_header('Content-Type', 'text/html; charset=utf-8')
+                self.send_header('Content-Length', str(len(body)))
+                self.send_header('Cache-Control', 'no-store')
+                self.end_headers()
+                try:
+                    self.wfile.write(body)
+                except (BrokenPipeError, ConnectionResetError):
+                    pass
+                return
+
             # Phục vụ file tĩnh giao diện web
             paths = {'/': 'hub.html', '/hub': 'hub.html', '/assets/app.js': 'app.js', '/assets/style.css': 'style.css'}
             if parsed.path not in paths:
