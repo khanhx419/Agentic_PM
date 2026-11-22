@@ -81,7 +81,7 @@ def make_server(port=8767, model=None, store=None):
 
             # Chạy thử trực tiếp mã Frontend (.tsx) vừa được Hub-and-Spoke sinh ra (không cần sửa code)
             if parsed.path.startswith('/preview/'):
-                import re, html as html_lib
+                import re, html as html_lib, subprocess
                 story_id = parsed.path[len('/preview/'):].strip('/')
                 if not re.fullmatch(r'[A-Za-z0-9_-]+', story_id):
                     return self.send(400, {'error': 'Story ID không hợp lệ.'})
@@ -90,7 +90,42 @@ def make_server(port=8767, model=None, store=None):
                 if not tsx_file.is_file():
                     return self.send(404, {'error': f'Không tìm thấy tệp giao diện {story_id}_impl.tsx.'})
                 raw_code = tsx_file.read_text(encoding='utf-8', errors='replace')
-                safe_code_json = json.dumps(raw_code).replace('</', '<\\/')
+
+                # Tiền xử lý import/export trong bộ nhớ (KHÔNG sửa tệp gốc trên đĩa)
+                clean_code = re.sub(r'^\s*import\s+[\s\S]*?from\s+[\'"][^\'"]+[\'"]\s*;?\s*$', '', raw_code, flags=re.M)
+                clean_code = re.sub(r'^\s*import\s+[\'"][^\'"]+[\'"]\s*;?\s*$', '', clean_code, flags=re.M)
+                clean_code = re.sub(r'^\s*export\s+default\s+', '', clean_code, flags=re.M)
+                clean_code = re.sub(r'^\s*export\s+(?=(?:async\s+)?(?:function|const|let|var|class)\b)', '', clean_code, flags=re.M)
+                comp_match = re.search(r'(?:function|const|let|var|class)\s+([A-Z][A-Za-z0-9_]*)', clean_code)
+                comp_name = comp_match.group(1) if comp_match else 'LoginForm'
+
+                # Biên dịch TSX -> JS thuần (React.createElement) ngay trên server bằng esbuild nội bộ
+                compiled_js = None
+                esbuild_dir = (ROOT.parent.parent / 'Du-an-Smart-PMS-AI' / 'frontend' / 'node_modules' / 'esbuild').resolve()
+                if esbuild_dir.is_dir():
+                    try:
+                        node_script = (
+                            f"const esbuild = require({json.dumps(str(esbuild_dir))});"
+                            "let s=''; process.stdin.setEncoding('utf8');"
+                            "process.stdin.on('data', c => s += c);"
+                            "process.stdin.on('end', () => {"
+                            "  const r = esbuild.transformSync(s, {loader:'tsx', jsx:'transform', jsxFactory:'React.createElement', jsxFragment:'React.Fragment'});"
+                            "  process.stdout.write(r.code);"
+                            "});"
+                        )
+                        proc = subprocess.run(
+                            ['node', '-e', node_script],
+                            input=clean_code, capture_output=True, text=True, encoding='utf-8', timeout=10
+                        )
+                        if proc.returncode == 0 and proc.stdout.strip():
+                            compiled_js = proc.stdout
+                    except Exception:
+                        compiled_js = None
+
+                safe_compiled_json = json.dumps(compiled_js).replace('</', '<\\/') if compiled_js is not None else 'null'
+                safe_clean_json = json.dumps(clean_code).replace('</', '<\\/')
+                safe_comp_name = json.dumps(comp_name)
+                babel_tag = '' if compiled_js is not None else '<script src="https://unpkg.com/@babel/standalone@7.24.7/babel.min.js"></script>'
                 title_esc = html_lib.escape(story_id)
                 preview_html = f"""<!doctype html>
 <html lang="vi">
@@ -99,15 +134,17 @@ def make_server(port=8767, model=None, store=None):
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Live Preview · {title_esc}_impl.tsx</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
-  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js" crossorigin></script>
+  {babel_tag}
 </head>
 <body class="min-h-screen bg-slate-950 text-slate-100 flex flex-col items-center justify-center p-4">
   <div id="root" class="w-full max-w-md"></div>
   <script>
     (function() {{
-      const rawCode = {safe_code_json};
+      const precompiled = {safe_compiled_json};
+      const cleanCode = {safe_clean_json};
+      const compName = {safe_comp_name};
       const origFetch = window.fetch;
       window.fetch = async function(url, options) {{
         if (typeof url === 'string' && (url.startsWith('/api') || url.includes('/login') || url.includes('/auth'))) {{
@@ -128,19 +165,13 @@ def make_server(port=8767, model=None, store=None):
       }};
 
       try {{
-        // Chuyển import/export thành code chạy trực tiếp trên trình duyệt (giữ nguyên 100% logic gốc)
-        let cleanCode = rawCode
-          .replace(/^\\s*import\\s+[\\s\\S]*?from\\s+['"][^'"]+['"]\\s*;?\\s*$/gm, '')
-          .replace(/^\\s*export\\s+default\\s+/gm, '')
-          .replace(/^\\s*export\\s+(?=(?:async\\s+)?(?:function|const|let|var|class)\\b)/gm, '');
-
-        const matchComp = cleanCode.match(/(?:function|const|let|var|class)\\s+([A-Z][A-Za-z0-9_]*)/);
-        const compName = matchComp ? matchComp[1] : 'LoginForm';
-
-        const compiled = Babel.transform(cleanCode, {{
-          filename: '{title_esc}_impl.tsx',
-          presets: ['react', 'typescript']
-        }}).code;
+        let compiled = precompiled;
+        if (!compiled) {{
+          compiled = Babel.transform(cleanCode, {{
+            filename: '{title_esc}_impl.tsx',
+            presets: [['react', {{ runtime: 'classic', pragma: 'React.createElement', pragmaFrag: 'React.Fragment' }}], 'typescript']
+          }}).code;
+        }}
 
         const R = window.React;
         const Comp = new Function(
