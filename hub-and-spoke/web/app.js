@@ -18,7 +18,7 @@ let sdlcResult = null;
 
 async function api(path, data) {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 165000);
+  const timer = setTimeout(() => controller.abort(), 300000);
   try {
     const headers = {'X-App-Token': config?.app_token || '', 'X-Session-Token': sessionToken};
     const options = {headers, signal: controller.signal};

@@ -6,7 +6,7 @@ import threading
 import urllib.parse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from config import ROOT, public_settings
+from config import ROOT, public_settings, settings
 from llm import Gemini, ModelError
 from pipeline import initial
 from workflow import run_step as advance
@@ -139,7 +139,7 @@ def make_server(port=8767, model=None, store=None):
   {babel_tag}
 </head>
 <body class="min-h-screen bg-slate-950 text-slate-100 flex flex-col items-center justify-center p-4">
-  <div id="root" class="w-full max-w-md"></div>
+  <div id="root" class="w-full max-w-2xl"></div>
   <script>
     (function() {{
       const precompiled = {safe_compiled_json};
@@ -320,7 +320,12 @@ def make_server(port=8767, model=None, store=None):
                             json.dump(custom_stories, f, ensure_ascii=False)
                         cmd.extend(['--stories-file', temp_stories_file])
 
+                    cfg = settings()
                     env = {**os.environ, 'PYTHONIOENCODING': 'utf-8', 'PYTHONUTF8': '1'}
+                    if cfg.get('key'):
+                        env['GEMINI_API_KEY'] = cfg['key']
+                    if cfg.get('model'):
+                        env['GEMINI_MODEL'] = cfg['model']
                     p = subprocess.run(cmd, cwd=str(smart_dir), env=env, capture_output=True, text=True, encoding='utf-8', errors='replace')
                     if p.returncode != 0:
                         err_detail = (p.stderr or '').strip() or (p.stdout or '').strip()
