@@ -178,32 +178,37 @@ def make_server(port=8767, model=None, store=None):
                     if events_file.is_file():
                         events = json.loads(events_file.read_text(encoding='utf-8'))
 
-                    stories_data = []
-                    stories_source = custom_stories
-                    if not stories_source:
-                        sample_json = smart_dir.parent / 'input_user_stories_mau.json'
-                        if sample_json.is_file():
-                            stories_source = json.loads(sample_json.read_text(encoding='utf-8'))
+                    stories_report_file = output_dir / 'stories_report.json'
+                    if stories_report_file.is_file():
+                        stories_data = json.loads(stories_report_file.read_text(encoding='utf-8'))
+                    else:
+                        stories_data = []
+                        stories_source = custom_stories
+                        if not stories_source:
+                            sample_json = smart_dir.parent / 'input_user_stories_mau.json'
+                            if sample_json.is_file():
+                                stories_source = json.loads(sample_json.read_text(encoding='utf-8'))
 
-                    stories_dir = output_dir / 'stories'
-                    for s in (stories_source or []):
-                        s_id = s.get('id', 'ST-1')
-                        s_type = s.get('type', 'BACKEND')
-                        ext = 'tsx' if s_type == 'FRONTEND' else 'py'
-                        impl_path = stories_dir / f'{s_id}_impl.{ext}'
-                        test_path = stories_dir / f'{s_id}_test.{ext}'
-                        code_txt = impl_path.read_text(encoding='utf-8', errors='replace') if impl_path.is_file() else ''
-                        test_txt = test_path.read_text(encoding='utf-8', errors='replace') if test_path.is_file() else ''
-                        stories_data.append({
-                            'id': s_id,
-                            'title': s.get('title', ''),
-                            'type': s_type,
-                            'story_points': s.get('story_points', 3),
-                            'status': 'COMPLETED',
-                            'ext': ext,
-                            'code': code_txt,
-                            'tests': test_txt,
-                        })
+                        stories_dir = output_dir / 'stories'
+                        for s in (stories_source or []):
+                            s_id = s.get('id', 'ST-1')
+                            s_type = s.get('type', 'BACKEND')
+                            ext = 'tsx' if s_type == 'FRONTEND' else 'py'
+                            impl_path = stories_dir / f'{s_id}_impl.{ext}'
+                            test_path = stories_dir / f'{s_id}_test.{ext}'
+                            code_txt = impl_path.read_text(encoding='utf-8', errors='replace') if impl_path.is_file() else ''
+                            test_txt = test_path.read_text(encoding='utf-8', errors='replace') if test_path.is_file() else ''
+                            stories_data.append({
+                                'id': s_id,
+                                'title': s.get('title', ''),
+                                'description': s.get('description', ''),
+                                'type': s_type,
+                                'story_points': s.get('story_points', 3),
+                                'status': 'COMPLETED',
+                                'ext': ext,
+                                'code': code_txt,
+                                'tests': test_txt,
+                            })
 
                     markdown_content = ""
                     if report_file.is_file():
